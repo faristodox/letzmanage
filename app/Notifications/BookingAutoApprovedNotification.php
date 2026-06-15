@@ -35,7 +35,7 @@ class BookingAutoApprovedNotification extends Notification
             ->subject('Booking Auto-Approved')
             ->line("{$this->booking->requesterName()} booked \"{$this->booking->space->name}\" and it was automatically approved.")
             ->line('Date: '.$this->booking->start_time->format('d M Y, H:i').' - '.$this->booking->end_time->format('H:i'))
-            ->action('View Booking', url('/bookings/'.$this->booking->id));
+            ->action('View Booking', route('bookings.index'));
     }
 
     /**

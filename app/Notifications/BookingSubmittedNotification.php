@@ -41,7 +41,7 @@ class BookingSubmittedNotification extends Notification
         }
 
         return $message
-            ->action('Review Booking', url('/bookings/'.$this->booking->id))
+            ->action('Review Booking', route('bookings.index'))
             ->line('Please review and approve or reject this request.');
     }
 

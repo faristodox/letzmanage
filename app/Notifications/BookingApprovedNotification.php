@@ -47,7 +47,7 @@ class BookingApprovedNotification extends Notification
             $message->line($approvalEmailNote);
         }
 
-        return $message->action('View Booking', url('/bookings/'.$this->booking->id));
+        return $message->action('View Booking', route('bookings.index'));
     }
 
     /**
