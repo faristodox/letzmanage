@@ -50,12 +50,7 @@
 
             <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div class="text-center">
-                    <span class="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                        <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                        Guest Booking Request
-                    </span>
-
-                    <h1 class="mt-6 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+                    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
                         Find a space and book it in minutes
                     </h1>
                     <p class="mt-4 text-slate-600 max-w-xl mx-auto">
