@@ -183,7 +183,17 @@
                     </button>
                 </div>
 
-                <h2 class="mt-6 text-lg font-semibold text-slate-900">Pick a start time</h2>
+                <div class="mt-6 flex items-center justify-between gap-4">
+                    <h2 class="text-lg font-semibold text-slate-900">Pick a start time</h2>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-medium text-slate-500 whitespace-nowrap">Interval</label>
+                        <select wire:model.live="slotInterval" class="rounded-lg border-slate-200 py-1.5 text-xs text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @foreach ($slotIntervalOptions as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
 
                 @if ($startSlots->isEmpty())
                     <p class="mt-3 text-sm text-slate-500">No available time slots for this day &mdash; please pick another date.</p>

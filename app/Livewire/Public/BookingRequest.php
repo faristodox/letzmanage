@@ -16,8 +16,6 @@ use Livewire\Component;
 
 class BookingRequest extends Component
 {
-    private const SLOT_INTERVAL_MINUTES = 30;
-
     private const MAX_DURATION_MINUTES = 1440;
 
     public int $step = 1;
@@ -47,6 +45,8 @@ class BookingRequest extends Component
     public bool $submitted = false;
 
     public bool $autoApproved = false;
+
+    public int $slotInterval = 30;
 
     public function mount(): void
     {
@@ -108,6 +108,12 @@ class BookingRequest extends Component
     public function selectDay(string $date): void
     {
         $this->date = $date;
+        $this->start_time = '';
+        $this->end_time = '';
+    }
+
+    public function updatedSlotInterval(): void
+    {
         $this->start_time = '';
         $this->end_time = '';
     }
@@ -251,6 +257,7 @@ class BookingRequest extends Component
             'days' => $days,
             'startSlots' => $startSlots,
             'endSlots' => $endSlots,
+            'slotIntervalOptions' => [30 => '30 min', 60 => '1 hour', 90 => '1.5 hours', 120 => '2 hours'],
         ]);
     }
 
@@ -299,7 +306,7 @@ class BookingRequest extends Component
                 ]);
             }
 
-            $cursor = $cursor->copy()->addMinutes(self::SLOT_INTERVAL_MINUTES);
+            $cursor = $cursor->copy()->addMinutes($this->slotInterval);
         }
 
         return $slots;
@@ -331,7 +338,7 @@ class BookingRequest extends Component
             return $slots;
         }
 
-        $cursor = $start->copy()->addMinutes(self::SLOT_INTERVAL_MINUTES);
+        $cursor = $start->copy()->addMinutes($this->slotInterval);
 
         if ($cursor->gt($limit)) {
             // The next approved booking (or close time) falls before the
@@ -344,7 +351,7 @@ class BookingRequest extends Component
         while ($cursor->lte($limit)) {
             $slots->push($this->endSlotData($start, $cursor));
 
-            $cursor = $cursor->copy()->addMinutes(self::SLOT_INTERVAL_MINUTES);
+            $cursor = $cursor->copy()->addMinutes($this->slotInterval);
         }
 
         return $slots;
