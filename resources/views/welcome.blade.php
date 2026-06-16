@@ -47,12 +47,7 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                         <div>
-                            <span class="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                                Multi-Branch Operations Platform
-                            </span>
-
-                            <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight">
+                            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight">
                                 Run every branch
                                 <span class="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">from one workspace</span>
                             </h1>
