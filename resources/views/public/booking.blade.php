@@ -7,7 +7,8 @@
 
         <title>Request a Booking - {{ config('app.name', 'Letz Manage') }}</title>
 
-        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+        @php $organizationLogoPath = app(\App\Services\SystemSettingService::class)->getOrganizationLogoPath(); @endphp
+        <link rel="icon" type="image/png" href="{{ $organizationLogoPath ? \Illuminate\Support\Facades\Storage::url($organizationLogoPath) : asset('favicon.svg') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -19,9 +20,7 @@
     <body class="font-sans antialiased text-slate-900 bg-white">
 
         @php
-            $organizationSettings = app(\App\Services\SystemSettingService::class);
-            $organizationName = $organizationSettings->getOrganizationName() ?: config('app.name', 'Letz Manage');
-            $organizationLogoPath = $organizationSettings->getOrganizationLogoPath();
+            $organizationName = app(\App\Services\SystemSettingService::class)->getOrganizationName() ?: config('app.name', 'Letz Manage');
         @endphp
 
         <!-- Header -->
