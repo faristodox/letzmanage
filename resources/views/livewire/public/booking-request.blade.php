@@ -163,7 +163,7 @@
                         </svg>
                     </button>
 
-                    <div class="grid flex-1 grid-cols-4 gap-2">
+                    <div class="grid flex-1 grid-cols-4 sm:grid-cols-7 gap-2">
                         @foreach ($days as $day)
                             @php $dateString = $day->format('Y-m-d'); @endphp
                             <button type="button" wire:click="selectDay('{{ $dateString }}')" class="flex flex-col items-center rounded-xl border px-2 py-2.5 text-center transition {{ $date === $dateString ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:border-indigo-200' }}">
