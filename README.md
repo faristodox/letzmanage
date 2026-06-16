@@ -1,58 +1,182 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+﻿# Letz Manage
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A single-organization, multi-branch office space booking and management system built with Laravel, Livewire, and Tailwind CSS.
 
-## About Laravel
+Live: **https://letzmanage.com**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Multi-branch support** — manage multiple branches under one organization
+- **Office space management** — spaces with photos, types, capacity, and facilities
+- **Parent-child space conflicts** — booking a hall automatically blocks its sub-rooms, and vice versa
+- **Guest booking** — public 3-step wizard at `/book` (no account required)
+- **Staff booking** — internal booking from the admin dashboard
+- **Approval workflows** — manual or auto-approval, configurable globally or per branch
+- **Role-based access** — Admin, Manager, and Staff roles with scoped permissions
+- **Email & Telegram notifications** — on booking submission, approval, and rejection
+- **Organization branding** — configurable name and logo shown on the public booking page
+- **Calendar view** — visual booking calendar for admins and managers
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Tech Stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Laravel 13 |
+| Frontend | Livewire 3 + Livewire Volt |
+| Styling | Tailwind CSS (via Vite) |
+| Database | MySQL (production) |
+| Auth | Laravel Breeze |
+| Notifications | Laravel Mail + Telegram Bot API |
+| Hosting | Hostinger Shared Hosting (PHP 8.4) |
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## Booking Workflow
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Guest
 
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Visit /book
+  → Choose a space
+  → Pick date & time
+  → Fill in details (name, email, phone, purpose)
+  → Submit
+  → Receive confirmation email
+  → Admin reviews and approves or rejects
+  → Receive approved / rejected email
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Admin / Manager
 
-## Contributing
+```
+Receive notification (email + Telegram)
+  → Log in to dashboard
+  → Go to Bookings
+  → Approve (with optional note) or Reject (with optional reason)
+  → Requester is notified automatically
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Approval Modes
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Mode | Behaviour |
+|------|-----------|
+| **Manual** | Bookings start as Pending and require admin or manager approval |
+| **Auto** | Bookings are immediately approved on creation |
 
-## Security Vulnerabilities
+Configurable globally or per branch under **Admin → Settings**.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
+
+## Space Conflict Rules
+
+- Only **Approved** bookings block time slots — Pending bookings may overlap
+- Booking a **parent space** (e.g. Hall) blocks all its **sub-spaces** (e.g. Meeting Room 1 & 2)
+- Booking a **sub-space** blocks its **parent only** — sibling sub-spaces remain independently bookable
+- Overlap is re-checked at approval time to handle race conditions
+
+---
+
+## Roles & Permissions
+
+| Role | Access |
+|------|--------|
+| **Admin** | Full access — all branches, users, settings, bookings |
+| **Manager** | Manage spaces and bookings for their branch; approve/reject |
+| **Staff** | Create bookings for their branch; view own bookings |
+| **Guest** | Submit booking requests via the public `/book` page |
+
+---
+
+## Local Development Setup
+
+### Requirements
+
+- PHP 8.4+
+- Composer
+- Node.js + npm
+- MySQL or SQLite
+
+### Steps
+
+```bash
+git clone https://github.com/faristodox/letzmanage.git
+cd letzmanage
+
+composer install
+npm install
+
+cp .env.example .env
+php artisan key:generate
+
+# Configure your DB in .env, then:
+php artisan migrate --seed
+php artisan storage:link
+
+npm run dev
+```
+
+Default seeded admin account:
+- **Email:** admin@letzmanage.test
+- **Password:** password
+
+---
+
+## Production Deployment (Hostinger Shared Hosting)
+
+```bash
+ssh -p 65002 u997806794@194.163.35.5
+
+cd ~/letzmanage
+
+# Pull latest changes
+git pull
+
+# Run if schema changed
+/opt/alt/php84/usr/bin/php artisan migrate --force
+
+# Run if blade files changed
+/opt/alt/php84/usr/bin/php artisan view:clear
+
+# Run if .env changed
+/opt/alt/php84/usr/bin/php artisan config:clear
+```
+
+> Vite assets (`public/build/`) are committed to git since the server has no Node.js.
+> Build locally with `npm run build` before pushing.
+
+---
+
+## Key Environment Variables
+
+```env
+APP_NAME=Letz Manage
+APP_URL=https://letzmanage.com
+APP_DEBUG=false
+
+DB_CONNECTION=mysql
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_ENCRYPTION=ssl
+MAIL_USERNAME=admin@letzmanage.com
+MAIL_FROM_ADDRESS=admin@letzmanage.com
+
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+```
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Private project. All rights reserved.
