@@ -7,6 +7,9 @@
 
         <title>Request a Booking - {{ config('app.name', 'Letz Manage') }}</title>
 
+        @php $organizationLogoPath = app(\App\Services\SystemSettingService::class)->getOrganizationLogoPath(); @endphp
+        <link rel="icon" type="image/png" href="{{ $organizationLogoPath ? \Illuminate\Support\Facades\Storage::url($organizationLogoPath) : asset('favicon.ico') }}">
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
