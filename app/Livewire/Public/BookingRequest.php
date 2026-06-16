@@ -228,8 +228,8 @@ class BookingRequest extends Component
 
         $days = collect();
 
-        for ($i = 0; $i < 7; $i++) {
-            $days->push(now()->addDays($this->weekOffset * 7 + $i)->startOfDay());
+        for ($i = 0; $i < 4; $i++) {
+            $days->push(now()->addDays($this->weekOffset * 4 + $i)->startOfDay());
         }
 
         $startSlots = collect();
