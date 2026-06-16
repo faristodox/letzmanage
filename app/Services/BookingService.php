@@ -15,6 +15,7 @@ use App\Notifications\BookingRejectedNotification;
 use App\Notifications\BookingSubmittedNotification;
 use App\Notifications\GuestBookingReceivedNotification;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Collection;
 
@@ -50,7 +51,7 @@ class BookingService
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
         } else {
             Notification::send($this->approvers($booking), new BookingSubmittedNotification($booking));
-            $this->notifyTelegram(new BookingSubmittedNotification($booking));
+            $this->notifyTelegramPending($booking);
         }
 
         return $booking;
@@ -86,7 +87,7 @@ class BookingService
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
         } else {
             Notification::send($this->approvers($booking), new BookingSubmittedNotification($booking));
-            $this->notifyTelegram(new BookingSubmittedNotification($booking));
+            $this->notifyTelegramPending($booking);
         }
 
         Notification::route('mail', $booking->guest_email)->notify(new GuestBookingReceivedNotification($booking));
@@ -193,6 +194,43 @@ class BookingService
         }
 
         Notification::route('telegram', $chatId)->notify($notification);
+    }
+
+    /**
+     * Send a Telegram message for a pending booking with inline Approve / Reject buttons.
+     */
+    private function notifyTelegramPending(Booking $booking): void
+    {
+        $chatId = config('services.telegram.chat_id');
+        $token = config('services.telegram.token');
+
+        if (! $chatId || ! $token) {
+            return;
+        }
+
+        $text = "🆕 *New booking request*\n"
+            ."{$booking->requesterName()} requested \"{$booking->space->name}\"\n"
+            ."📅 {$booking->start_time->format('D, d M Y')} · {$booking->start_time->format('H:i')}-{$booking->end_time->format('H:i')}";
+
+        if ($booking->isGuest()) {
+            $text .= "\n✉️ {$booking->guest_email}";
+        }
+
+        if ($booking->title) {
+            $text .= "\n📝 {$booking->title}";
+        }
+
+        Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'parse_mode' => 'Markdown',
+            'reply_markup' => json_encode([
+                'inline_keyboard' => [[
+                    ['text' => '✅ Approve', 'callback_data' => "approve_{$booking->id}"],
+                    ['text' => '❌ Reject', 'callback_data' => "reject_{$booking->id}"],
+                ]],
+            ]),
+        ]);
     }
 
     /**

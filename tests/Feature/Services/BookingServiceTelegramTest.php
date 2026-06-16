@@ -18,6 +18,7 @@ use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -32,10 +33,14 @@ class BookingServiceTelegramTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_guest_booking_broadcasts_submitted_notification_to_telegram_when_configured(): void
+    public function test_guest_booking_sends_telegram_http_message_when_configured(): void
     {
-        config(['services.telegram.chat_id' => 'test-chat-id']);
+        config([
+            'services.telegram.chat_id' => 'test-chat-id',
+            'services.telegram.token' => 'test-token',
+        ]);
 
+        Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true])]);
         Notification::fake();
 
         $branch = Branch::factory()->create();
@@ -51,17 +56,17 @@ class BookingServiceTelegramTest extends TestCase
             'guest_email' => 'jane@example.com',
         ]);
 
-        Notification::assertSentOnDemand(
-            BookingSubmittedNotification::class,
-            fn ($notification, $channels, $notifiable) => in_array('telegram', $channels)
-                && $notifiable->routeNotificationFor('telegram') === 'test-chat-id'
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'sendMessage')
+            && $request['chat_id'] === 'test-chat-id'
+            && str_contains($request['reply_markup'], 'approve_')
         );
     }
 
     public function test_telegram_broadcast_is_skipped_when_chat_id_not_configured(): void
     {
-        config(['services.telegram.chat_id' => null]);
+        config(['services.telegram.chat_id' => null, 'services.telegram.token' => null]);
 
+        Http::fake();
         Notification::fake();
 
         $branch = Branch::factory()->create();
@@ -77,7 +82,7 @@ class BookingServiceTelegramTest extends TestCase
             'guest_email' => 'jane@example.com',
         ]);
 
-        Notification::assertNotSentTo(new AnonymousNotifiable, BookingSubmittedNotification::class);
+        Http::assertNothingSent();
     }
 
     public function test_approve_and_reject_broadcast_to_telegram(): void

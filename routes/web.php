@@ -23,4 +23,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('bookings/calendar', 'bookings.calendar')->name('bookings.calendar');
 });
 
+Route::post('telegram/webhook', App\Http\Controllers\TelegramWebhookController::class);
+
 require __DIR__.'/auth.php';
