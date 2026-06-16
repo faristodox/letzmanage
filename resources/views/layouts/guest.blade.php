@@ -7,8 +7,7 @@
 
         <title>{{ config('app.name', 'Letz Manage') }}</title>
 
-        @php $_faviconPath = app(\App\Services\SystemSettingService::class)->getOrganizationLogoPath(); @endphp
-        <link rel="icon" type="image/png" href="{{ $_faviconPath ? \Illuminate\Support\Facades\Storage::url($_faviconPath) : asset('favicon.ico') }}">
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
