@@ -5,9 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>Request a Booking - {{ config('app.name', 'Letz Manage') }}</title>
-
         @php $organizationLogoPath = app(\App\Services\SystemSettingService::class)->getOrganizationLogoPath(); @endphp
+        @php $organizationName = app(\App\Services\SystemSettingService::class)->getOrganizationName() ?: config('app.name', 'Letz Manage'); @endphp
+
+        <title>Workspace Booking - {{ $organizationName }}</title>
         <link rel="icon" type="image/png" href="{{ $organizationLogoPath ? \Illuminate\Support\Facades\Storage::url($organizationLogoPath) : asset('favicon.svg') }}">
 
         <!-- Fonts -->
@@ -18,10 +19,6 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased text-slate-900 bg-white">
-
-        @php
-            $organizationName = app(\App\Services\SystemSettingService::class)->getOrganizationName() ?: config('app.name', 'Letz Manage');
-        @endphp
 
         <!-- Header -->
         <header class="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
