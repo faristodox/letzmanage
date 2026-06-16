@@ -42,6 +42,9 @@ class Index extends Component
     #[Validate('required|integer|exists:branches,id')]
     public ?int $branch_id = null;
 
+    #[Validate('nullable|integer|exists:office_spaces,id')]
+    public ?int $parent_id = null;
+
     #[Validate('nullable|image|max:2048')]
     public $image = null;
 
@@ -64,7 +67,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'name', 'facilities', 'image', 'existingImagePath', 'removeImage']);
+        $this->reset(['editingId', 'name', 'facilities', 'image', 'existingImagePath', 'removeImage', 'parent_id']);
         $this->type_id = OfficeSpaceType::orderBy('name')->value('id');
         $this->status = OfficeSpaceStatus::Active->value;
         $this->capacity = 1;
@@ -93,6 +96,7 @@ class Index extends Component
         $this->status = $space->status->value;
         $this->branch_id = $space->branch_id;
         $this->existingImagePath = $space->image_path;
+        $this->parent_id = $space->parent_id;
         $this->image = null;
         $this->removeImage = false;
         $this->showModal = true;
@@ -106,6 +110,7 @@ class Index extends Component
 
         $space = $this->editingId ? OfficeSpace::findOrFail($this->editingId) : null;
 
+        $data['parent_id'] = $this->parent_id ?: null;
         unset($data['image'], $data['removeImage']);
 
         if ($this->image) {
@@ -167,16 +172,24 @@ class Index extends Component
     {
         $spaces = OfficeSpace::query()
             ->visibleTo(auth()->user())
-            ->with(['branch', 'type'])
+            ->with(['branch', 'type', 'parent'])
             ->when($this->search, fn ($query) => $query->where('name', 'like', "%{$this->search}%"))
             ->orderBy('name')
             ->paginate(10);
+
+        $parentOptions = OfficeSpace::query()
+            ->visibleTo(auth()->user())
+            ->whereNull('parent_id')
+            ->when($this->editingId, fn ($q) => $q->where('id', '!=', $this->editingId))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('livewire.office-spaces.index', [
             'spaces' => $spaces,
             'types' => OfficeSpaceType::orderBy('name')->get(),
             'statuses' => OfficeSpaceStatus::cases(),
             'branches' => auth()->user()->hasRole(RoleName::Admin->value) ? Branch::orderBy('name')->get() : collect(),
+            'parentOptions' => $parentOptions,
         ]);
     }
 }

@@ -45,7 +45,14 @@
                                 </div>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $space->name }}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-slate-900">
+                            {{ $space->name }}
+                            @if ($space->parent)
+                                <span class="ml-1.5 inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-600/20">
+                                    Part of {{ $space->parent->name }}
+                                </span>
+                            @endif
+                        </td>
                         @if (auth()->user()->hasRole(App\Enums\RoleName::Admin->value))
                             <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $space->branch->name }}</td>
                         @endif
@@ -157,6 +164,18 @@
                         <x-input-label for="facilities" :value="__('Facilities (comma separated)')" />
                         <x-text-input wire:model="facilities" id="facilities" type="text" class="mt-1 block w-full" placeholder="projector, whiteboard" />
                         <x-input-error :messages="$errors->get('facilities')" class="mt-2" />
+                    </div>
+
+                    <div class="mt-4">
+                        <x-input-label for="parent_id" :value="__('Sub-space of (optional)')" />
+                        <select wire:model="parent_id" id="parent_id" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">{{ __('— None (standalone space) —') }}</option>
+                            @foreach ($parentOptions as $option)
+                                <option value="{{ $option->id }}">{{ $option->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('If set, booking this space will also block the parent, and vice versa.') }}</p>
+                        <x-input-error :messages="$errors->get('parent_id')" class="mt-2" />
                     </div>
 
                     <div class="mt-4">

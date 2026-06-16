@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['branch_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status'])]
+#[Fillable(['branch_id', 'parent_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status'])]
 class OfficeSpace extends Model
 {
     use HasFactory;
@@ -41,6 +41,16 @@ class OfficeSpace extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(OfficeSpace::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(OfficeSpace::class, 'parent_id');
     }
 
     public function type(): BelongsTo

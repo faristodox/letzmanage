@@ -273,8 +273,10 @@ class BookingRequest extends Component
         $dayStart = Carbon::parse($this->date)->startOfDay();
         $dayEnd = $dayStart->copy()->addDay()->addMinutes(self::MAX_DURATION_MINUTES);
 
+        $spaceIds = app(BookingService::class)->conflictingSpaceIds($this->space_id);
+
         return Booking::query()
-            ->where('space_id', $this->space_id)
+            ->whereIn('space_id', $spaceIds)
             ->where('status', BookingStatus::Approved)
             ->where('start_time', '<', $dayEnd)
             ->where('end_time', '>', $dayStart)

@@ -7,6 +7,7 @@ use App\Enums\BookingStatus;
 use App\Enums\RoleName;
 use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
+use App\Models\OfficeSpace;
 use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
 use App\Notifications\BookingAutoApprovedNotification;
@@ -152,12 +153,32 @@ class BookingService
      */
     public function hasOverlap(int $spaceId, string|Carbon $start, string|Carbon $end, ?int $excludeBookingId = null): bool
     {
-        return Booking::where('space_id', $spaceId)
+        return Booking::whereIn('space_id', $this->conflictingSpaceIds($spaceId))
             ->where('status', BookingStatus::Approved)
             ->when($excludeBookingId, fn ($query) => $query->where('id', '!=', $excludeBookingId))
             ->where('start_time', '<', $end)
             ->where('end_time', '>', $start)
             ->exists();
+    }
+
+    /** @return array<int> */
+    public function conflictingSpaceIds(int $spaceId): array
+    {
+        $space = OfficeSpace::with('children')->find($spaceId);
+
+        if (! $space) {
+            return [$spaceId];
+        }
+
+        // Always include the space itself + all its sub-spaces
+        $ids = [$spaceId, ...$space->children->pluck('id')->all()];
+
+        // If this is a sub-space, also block the parent
+        if ($space->parent_id) {
+            $ids[] = $space->parent_id;
+        }
+
+        return array_unique($ids);
     }
 
     /**

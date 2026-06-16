@@ -87,7 +87,7 @@
                     </div>
 
                     <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                        @forelse ($spaces as $space)
+                        @forelse ($spaces->load('parent') as $space)
                             <button type="button" wire:click="selectSpace({{ $space->id }})" class="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-indigo-300 hover:shadow-md">
                                 @if ($space->image_path)
                                     <img src="{{ \Illuminate\Support\Facades\Storage::url($space->image_path) }}" alt="{{ $space->name }}" class="h-40 w-full object-cover">
@@ -104,6 +104,9 @@
                                         <h3 class="font-semibold text-slate-900">{{ $space->name }}</h3>
                                         <span class="whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">{{ $space->type->name }}</span>
                                     </div>
+                                    @if ($space->parent)
+                                        <p class="mt-0.5 text-xs text-violet-600">Part of {{ $space->parent->name }}</p>
+                                    @endif
                                     <p class="mt-1 text-sm text-slate-500">
                                         Up to {{ $space->capacity }} {{ \Illuminate\Support\Str::plural('person', $space->capacity) }}
                                     </p>
