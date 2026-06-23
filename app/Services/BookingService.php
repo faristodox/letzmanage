@@ -113,6 +113,8 @@ class BookingService
 
         $booking->load(['user', 'space']);
 
+        $this->rejectConflictingPending($booking, $approver);
+
         $this->notifyRequester($booking, new BookingApprovedNotification($booking));
         $this->notifyTelegram(new BookingApprovedNotification($booking));
 
@@ -180,6 +182,31 @@ class BookingService
         }
 
         return array_unique($ids);
+    }
+
+    /**
+     * Auto-reject any pending bookings that conflict with a newly approved booking,
+     * notifying each requester so they can choose another slot.
+     */
+    private function rejectConflictingPending(Booking $approvedBooking, User $approver): void
+    {
+        $conflicting = Booking::whereIn('space_id', $this->conflictingSpaceIds($approvedBooking->space_id))
+            ->where('status', BookingStatus::Pending)
+            ->where('id', '!=', $approvedBooking->id)
+            ->where('start_time', '<', $approvedBooking->end_time)
+            ->where('end_time', '>', $approvedBooking->start_time)
+            ->with(['user', 'space'])
+            ->get();
+
+        foreach ($conflicting as $conflict) {
+            $conflict->update([
+                'status' => BookingStatus::Rejected,
+                'approved_by' => $approver->id,
+                'notes' => 'Another booking was confirmed for the same time slot.',
+            ]);
+
+            $this->notifyRequester($conflict, new BookingRejectedNotification($conflict));
+        }
     }
 
     /**

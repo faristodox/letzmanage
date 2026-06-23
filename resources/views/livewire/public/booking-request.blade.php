@@ -211,13 +211,23 @@
                                     {{ $start_time === $slot['time']
                                         ? 'border-indigo-500 bg-indigo-600 text-white'
                                         : ($slot['available']
-                                            ? 'border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
+                                            ? ($slot['tbc']
+                                                ? 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100'
+                                                : 'border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50')
                                             : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed') }}"
                             >
-                                {{ $slot['label'] }}
+                                <span class="block">{{ $slot['label'] }}</span>
+                                @if ($slot['tbc'] && $start_time !== $slot['time'])
+                                    <span class="block text-[10px] font-semibold text-amber-500">TBC</span>
+                                @endif
                             </button>
                         @endforeach
                     </div>
+                    @if ($startSlots->where('tbc', true)->isNotEmpty())
+                        <p class="mt-2 text-xs text-amber-600">
+                            <span class="font-semibold">TBC</span> — slot has a pending booking awaiting approval. You can still request it.
+                        </p>
+                    @endif
                 @endif
 
                 @if ($start_time)
@@ -228,21 +238,27 @@
                     @else
                         <div class="mt-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                             @foreach ($endSlots as $slot)
+                                @php $isSelected = $end_time === $slot['time']; @endphp
                                 <button
                                     type="button"
                                     wire:click="selectEndSlot('{{ $slot['time'] }}')"
                                     class="rounded-lg border px-3 py-2 text-sm font-medium transition
-                                        {{ $end_time === $slot['time']
+                                        {{ $isSelected
                                             ? 'border-indigo-500 bg-indigo-600 text-white'
-                                            : 'border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50' }}"
+                                            : ($slot['tbc']
+                                                ? 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100'
+                                                : 'border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50') }}"
                                 >
                                     <span class="block">
                                         {{ $slot['label'] }}
                                         @if ($slot['nextDay'])
-                                            <span class="text-[10px] font-semibold align-top {{ $end_time === $slot['time'] ? 'text-indigo-100' : 'text-indigo-500' }}">+1d</span>
+                                            <span class="text-[10px] font-semibold align-top {{ $isSelected ? 'text-indigo-100' : 'text-indigo-500' }}">+1d</span>
                                         @endif
                                     </span>
-                                    <span class="block text-xs {{ $end_time === $slot['time'] ? 'text-indigo-100' : 'text-slate-400' }}">{{ $slot['duration'] }}</span>
+                                    <span class="block text-xs {{ $isSelected ? 'text-indigo-100' : 'text-slate-400' }}">{{ $slot['duration'] }}</span>
+                                    @if ($slot['tbc'] && ! $isSelected)
+                                        <span class="block text-[10px] font-semibold text-amber-500">TBC</span>
+                                    @endif
                                 </button>
                             @endforeach
                         </div>

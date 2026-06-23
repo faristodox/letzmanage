@@ -243,10 +243,11 @@ class BookingRequest extends Component
 
         if ($this->space_id && $this->date) {
             $approvedBookings = $this->approvedBookingsForDate();
-            $startSlots = $this->buildStartSlots($approvedBookings);
+            $pendingBookings = $this->pendingBookingsForDate();
+            $startSlots = $this->buildStartSlots($approvedBookings, $pendingBookings);
 
             if ($this->start_time) {
-                $endSlots = $this->buildEndSlots($approvedBookings);
+                $endSlots = $this->buildEndSlots($approvedBookings, $pendingBookings);
             }
         }
 
@@ -261,14 +262,17 @@ class BookingRequest extends Component
         ]);
     }
 
-    /**
-     * Approved bookings overlapping the selected date (00:00-23:59) or the
-     * early hours of the following day (up to the max bookable duration),
-     * including any booking that started the previous day and runs past
-     * midnight. The extended window lets end-time options that cross
-     * midnight correctly account for bookings on the next calendar day.
-     */
     private function approvedBookingsForDate(): Collection
+    {
+        return $this->bookingsForDate(BookingStatus::Approved);
+    }
+
+    private function pendingBookingsForDate(): Collection
+    {
+        return $this->bookingsForDate(BookingStatus::Pending);
+    }
+
+    private function bookingsForDate(BookingStatus $status): Collection
     {
         $dayStart = Carbon::parse($this->date)->startOfDay();
         $dayEnd = $dayStart->copy()->addDay()->addMinutes(self::MAX_DURATION_MINUTES);
@@ -277,17 +281,13 @@ class BookingRequest extends Component
 
         return Booking::query()
             ->whereIn('space_id', $spaceIds)
-            ->where('status', BookingStatus::Approved)
+            ->where('status', $status)
             ->where('start_time', '<', $dayEnd)
             ->where('end_time', '>', $dayStart)
             ->get(['start_time', 'end_time']);
     }
 
-    /**
-     * Build the list of selectable start times for the selected date (00:00-23:30),
-     * marking each as available or not based on existing approved bookings.
-     */
-    private function buildStartSlots(Collection $approvedBookings): Collection
+    private function buildStartSlots(Collection $approvedBookings, Collection $pendingBookings): Collection
     {
         $dayStart = Carbon::parse($this->date)->startOfDay();
         $dayEnd = $dayStart->copy()->addDay();
@@ -301,10 +301,15 @@ class BookingRequest extends Component
                     fn (Booking $booking) => $cursor->gte($booking->start_time) && $cursor->lt($booking->end_time)
                 );
 
+                $tbc = $available && $pendingBookings->contains(
+                    fn (Booking $booking) => $cursor->gte($booking->start_time) && $cursor->lt($booking->end_time)
+                );
+
                 $slots->push([
                     'time' => $cursor->format('H:i'),
                     'label' => $cursor->format('g:i A'),
                     'available' => $available,
+                    'tbc' => $tbc,
                 ]);
             }
 
@@ -314,13 +319,7 @@ class BookingRequest extends Component
         return $slots;
     }
 
-    /**
-     * Build the list of selectable end times for the currently selected
-     * start time, stopping at the next approved booking or the maximum
-     * bookable duration - whichever comes first. End times may fall on the
-     * following calendar day (e.g. an 11pm start can end at 1am).
-     */
-    private function buildEndSlots(Collection $approvedBookings): Collection
+    private function buildEndSlots(Collection $approvedBookings, Collection $pendingBookings): Collection
     {
         $start = Carbon::parse("{$this->date} {$this->start_time}");
 
@@ -343,15 +342,13 @@ class BookingRequest extends Component
         $cursor = $start->copy()->addMinutes($this->slotInterval);
 
         if ($cursor->gt($limit)) {
-            // The next approved booking (or close time) falls before the
-            // first grid-aligned option - offer it as a single end time.
-            $slots->push($this->endSlotData($start, $limit));
+            $slots->push($this->endSlotData($start, $limit, $pendingBookings));
 
             return $slots;
         }
 
         while ($cursor->lte($limit)) {
-            $slots->push($this->endSlotData($start, $cursor));
+            $slots->push($this->endSlotData($start, $cursor, $pendingBookings));
 
             $cursor = $cursor->copy()->addMinutes($this->slotInterval);
         }
@@ -359,13 +356,18 @@ class BookingRequest extends Component
         return $slots;
     }
 
-    private function endSlotData(Carbon $start, Carbon $end): array
+    private function endSlotData(Carbon $start, Carbon $end, Collection $pendingBookings): array
     {
+        $tbc = $pendingBookings->contains(
+            fn (Booking $booking) => $booking->start_time->lt($end) && $booking->end_time->gt($start)
+        );
+
         return [
             'time' => $end->format('H:i'),
             'label' => $end->format('g:i A'),
             'duration' => $this->formatDuration($start->diffInMinutes($end)),
             'nextDay' => ! $end->isSameDay($start),
+            'tbc' => $tbc,
         ];
     }
 
