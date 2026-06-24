@@ -45,7 +45,7 @@ class Index extends Component
         $this->detailId = null; // close modal before long operation
 
         try {
-            Artisan::call('spi:scrape');
+            Artisan::call('spi:scrape', ['--skip-profiles' => true]);
         } catch (\Throwable $e) {
             $this->syncMessage = 'Sync failed: '.$e->getMessage();
             $this->syncSuccess = false;

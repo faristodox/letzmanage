@@ -10,7 +10,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 class ScrapeSpiData extends Command
 {
-    protected $signature = 'spi:scrape';
+    protected $signature = 'spi:scrape {--skip-profiles : Skip member profile scraping (faster, for browser sync)}';
     protected $description = 'Log into ikram-spi.org and pull member + naqib data (levels 03–05)';
 
     protected string $baseUrl = 'https://www.ikram-spi.org/sys/';
@@ -93,11 +93,13 @@ class ScrapeSpiData extends Command
             $this->scrapeNaqibForLevel($level);
         }
 
-        // Step 4: scrape each member's profile page
-        $this->newLine();
-        $this->line('══════════════════════════════════════');
-        $this->info('Fetching member profiles…');
-        $this->scrapeProfiles();
+        // Step 4: scrape each member's profile page (skipped when --skip-profiles)
+        if (! $this->option('skip-profiles')) {
+            $this->newLine();
+            $this->line('══════════════════════════════════════');
+            $this->info('Fetching member profiles…');
+            $this->scrapeProfiles();
+        }
 
         $this->newLine();
         $this->info('Done.');
