@@ -40,4 +40,11 @@ return [
         'chat_id' => env('TELEGRAM_CHAT_ID'),
     ],
 
+    'spi' => [
+        'username'   => env('SPI_USERNAME'),
+        'password'   => env('SPI_PASSWORD'),
+        'ssl_verify' => env('SPI_SSL_VERIFY', true),
+    ],
+
+
 ];

@@ -21,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('settings', 'settings.index')->name('settings.index');
     Route::view('bookings', 'bookings.index')->name('bookings.index');
     Route::view('bookings/calendar', 'bookings.calendar')->name('bookings.calendar');
+    Route::view('spi-members', 'spi-members.index')->name('spi-members.index');
 });
 
 Route::post('telegram/webhook', App\Http\Controllers\TelegramWebhookController::class);
