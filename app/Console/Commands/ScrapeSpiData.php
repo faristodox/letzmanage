@@ -132,8 +132,8 @@ class ScrapeSpiData extends Command
 
             $members[] = [
                 'nama'     => $cells[1],
-                'no_ahli'  => trim($cells[2]),
-                'no_kp'    => trim($cells[3]),
+                'no_ahli'  => preg_replace('/\s+/', '', $cells[2]), // strip ALL whitespace from ID
+                'no_kp'    => preg_replace('/\s+/', '', $cells[3]), // same for IC
                 'umur'     => (int) $cells[4],
                 'jantina'  => $cells[5],
                 'kategori' => $cells[6],
