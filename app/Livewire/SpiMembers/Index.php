@@ -23,17 +23,6 @@ class Index extends Component
 
     public bool $syncSuccess = false;
 
-    public ?int $detailId = null;
-
-    public function showDetail(int $id): void
-    {
-        $this->detailId = $id;
-    }
-
-    public function closeDetail(): void
-    {
-        $this->detailId = null;
-    }
 
     public function updatingSearch(): void
     {
@@ -91,14 +80,12 @@ class Index extends Component
             ->orderBy('level')
             ->pluck('total', 'level');
 
-        $lastSync     = SpiMember::max('synced_at');
-        $detailMember = $this->detailId ? SpiMember::find($this->detailId) : null;
+        $lastSync = SpiMember::max('synced_at');
 
         return view('livewire.spi-members.index', [
-            'members'      => $members,
-            'stats'        => $stats,
-            'lastSync'     => $lastSync ? \Carbon\Carbon::parse($lastSync) : null,
-            'detailMember' => $detailMember,
+            'members'  => $members,
+            'stats'    => $stats,
+            'lastSync' => $lastSync ? \Carbon\Carbon::parse($lastSync) : null,
         ]);
     }
 }

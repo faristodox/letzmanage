@@ -57,52 +57,64 @@
         </button>
     </div>
 
-    {{-- Sync result message --}}
     @if ($syncMessage)
         <div class="mb-4 rounded-lg px-4 py-3 text-sm font-medium {{ $syncSuccess ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700' }}">
             {{ $syncMessage }}
         </div>
     @endif
 
-    {{-- Last sync info --}}
     @if ($lastSync)
         <p class="mb-3 text-xs text-slate-400">
             Terakhir disegerak: {{ $lastSync->diffForHumans() }} ({{ $lastSync->format('d M Y, H:i') }})
         </p>
     @endif
 
-    {{-- Table --}}
+    {{-- Table with expandable rows --}}
     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200">
+            <table class="min-w-full divide-y divide-slate-200" x-data="{ expanded: null }">
                 <thead class="bg-slate-50">
                     <tr>
+                        <th class="w-8 px-3 py-3"></th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Ahli</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. KP</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Umur</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Jantina</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ktgr</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Tel</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Naqib</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Peringkat</th>
-                        <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
                     @forelse ($members as $member)
-                        <tr wire:key="member-{{ $member->id }}" class="hover:bg-slate-50">
+                        @php
+                            $latestJk     = $member->jawatankuasa ? last($member->jawatankuasa) : null;
+                            $latestUsrah  = $member->usrah_dibawa ? last($member->usrah_dibawa) : null;
+                            $hasProfile   = $latestJk || $latestUsrah || $member->penglibatan_amal;
+                        @endphp
+
+                        {{-- Main row --}}
+                        <tr wire:key="member-{{ $member->id }}"
+                            @if ($hasProfile) @click="expanded = expanded === {{ $member->id }} ? null : {{ $member->id }}" class="cursor-pointer hover:bg-slate-50" @else class="hover:bg-slate-50" @endif>
+
+                            <td class="px-3 py-3 text-center">
+                                @if ($hasProfile)
+                                    <svg :class="expanded === {{ $member->id }} ? 'rotate-90' : ''"
+                                         class="mx-auto h-4 w-4 text-slate-400 transition-transform"
+                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ $member->nama }}</td>
-                            <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ $member->no_ahli }}</td>
-                            <td class="px-4 py-3 text-sm text-slate-500 font-mono">{{ $member->maskedNoKp() }}</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-600">{{ $member->no_ahli }}</td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->umur }}</td>
                             <td class="px-4 py-3 text-sm">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $member->jantina === 'Lelaki' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700' }}">
                                     {{ $member->jantina }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-slate-600">{{ $member->kategori }}</td>
-                            <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ $member->no_tel ?: '—' }}</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-600">{{ $member->no_tel ?: '—' }}</td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->naqib ?: '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
@@ -110,17 +122,75 @@
                                     {{ \App\Models\SpiMember::levelLabel($member->level) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <button type="button" wire:click="showDetail({{ $member->id }})"
-                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
-                                    Profil
-                                </button>
-                            </td>
                         </tr>
+
+                        {{-- Expandable profile row --}}
+                        @if ($hasProfile)
+                            <tr wire:key="profile-{{ $member->id }}" x-show="expanded === {{ $member->id }}" x-cloak>
+                                <td></td>
+                                <td colspan="7" class="border-t border-slate-100 bg-slate-50 px-4 py-4">
+                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+                                        {{-- JK Terkini --}}
+                                        <div>
+                                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Jawatankuasa</p>
+                                            @if ($latestJk)
+                                                <p class="text-sm font-medium text-slate-800">{{ $latestJk['jawatan'] ?? '—' }}</p>
+                                                <p class="text-xs text-slate-500">{{ $latestJk['nama'] ?? '' }}</p>
+                                                @if (!empty($latestJk['tarikh_bentuk']))
+                                                    <p class="mt-0.5 text-xs text-slate-400">{{ $latestJk['tarikh_bentuk'] }}</p>
+                                                @endif
+                                                @if (count($member->jawatankuasa) > 1)
+                                                    <p class="mt-1 text-xs text-indigo-500">+{{ count($member->jawatankuasa) - 1 }} lagi</p>
+                                                @endif
+                                            @else
+                                                <p class="text-xs text-slate-400">—</p>
+                                            @endif
+                                        </div>
+
+                                        {{-- Usrah Dibawa --}}
+                                        <div>
+                                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Usrah Yang Dibawa</p>
+                                            @if ($latestUsrah)
+                                                <p class="text-sm font-medium text-slate-800">{{ $latestUsrah['nama'] ?? '—' }}</p>
+                                                <p class="text-xs text-slate-500">
+                                                    Tahap {{ $latestUsrah['tahap'] ?? '—' }} · {{ $latestUsrah['kategori'] ?? '—' }}
+                                                </p>
+                                                @if (!empty($latestUsrah['tarikh_bentuk']))
+                                                    <p class="mt-0.5 text-xs text-slate-400">{{ $latestUsrah['tarikh_bentuk'] }}</p>
+                                                @endif
+                                                @if (count($member->usrah_dibawa) > 1)
+                                                    <p class="mt-1 text-xs text-indigo-500">+{{ count($member->usrah_dibawa) - 1 }} lagi</p>
+                                                @endif
+                                            @else
+                                                <p class="text-xs text-slate-400">—</p>
+                                            @endif
+                                        </div>
+
+                                        {{-- Penglibatan Amal --}}
+                                        <div>
+                                            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Penglibatan Amal</p>
+                                            @if ($member->penglibatan_amal)
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach ($member->penglibatan_amal as $item)
+                                                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                                            {{ $item }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <p class="text-xs text-slate-400">—</p>
+                                            @endif
+                                        </div>
+
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr>
                             <td colspan="8" class="px-4 py-12 text-center text-sm text-slate-500">
-                                Tiada rekod ditemui. Cuba klik "Sync dari SPI" untuk mengambil data terkini.
+                                Tiada rekod ditemui.
                             </td>
                         </tr>
                     @endforelse
@@ -134,102 +204,4 @@
             </div>
         @endif
     </div>
-
-    {{-- Profile detail modal --}}
-    @if ($detailMember)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
-             wire:click.self="closeDetail">
-            <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
-                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900">{{ $detailMember->nama }}</h2>
-                        <p class="text-xs text-slate-500">{{ $detailMember->no_ahli }} &middot; {{ \App\Models\SpiMember::levelLabel($detailMember->level) }}</p>
-                    </div>
-                    <button type="button" wire:click="closeDetail" class="text-slate-400 hover:text-slate-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="space-y-6 px-6 py-5">
-                    {{-- Jawatankuasa --}}
-                    <div>
-                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Jawatankuasa</h3>
-                        @if ($detailMember->jawatankuasa)
-                            <div class="overflow-x-auto rounded-lg border border-slate-200">
-                                <table class="min-w-full divide-y divide-slate-200 text-xs">
-                                    <thead class="bg-slate-50">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Nama JK</th>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Jawatan</th>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tarikh</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100 bg-white">
-                                        @foreach ($detailMember->jawatankuasa as $jk)
-                                            <tr>
-                                                <td class="px-3 py-2 text-slate-800">{{ $jk['nama'] ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-slate-600">{{ $jk['jawatan'] ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-slate-500">{{ $jk['tarikh_bentuk'] ?? '—' }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <p class="text-xs text-slate-400">Tiada rekod jawatankuasa.</p>
-                        @endif
-                    </div>
-
-                    {{-- Usrah dibawa --}}
-                    <div>
-                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Usrah Yang Dibawa</h3>
-                        @if ($detailMember->usrah_dibawa)
-                            <div class="overflow-x-auto rounded-lg border border-slate-200">
-                                <table class="min-w-full divide-y divide-slate-200 text-xs">
-                                    <thead class="bg-slate-50">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Nama Usrah</th>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tahap</th>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Kategori</th>
-                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tarikh Bentuk</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100 bg-white">
-                                        @foreach ($detailMember->usrah_dibawa as $usrah)
-                                            <tr>
-                                                <td class="px-3 py-2 text-slate-800">{{ $usrah['nama'] ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-slate-600">{{ $usrah['tahap'] ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-slate-600">{{ $usrah['kategori'] ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-slate-500">{{ $usrah['tarikh_bentuk'] ?? '—' }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @else
-                            <p class="text-xs text-slate-400">Tiada rekod usrah dibawa.</p>
-                        @endif
-                    </div>
-
-                    {{-- Penglibatan amal --}}
-                    <div>
-                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Penglibatan Amal (Semasa)</h3>
-                        @if ($detailMember->penglibatan_amal)
-                            <div class="flex flex-wrap gap-2">
-                                @foreach ($detailMember->penglibatan_amal as $item)
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                                        {{ $item }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        @else
-                            <p class="text-xs text-slate-400">Tiada rekod penglibatan amal.</p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
 </div>
