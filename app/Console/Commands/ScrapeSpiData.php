@@ -159,12 +159,7 @@ class ScrapeSpiData extends Command
 
     private function scrapeNaqibForLevel(string $level): void
     {
-        $url = $this->baseUrl.'admin_usrahdetail.asp?'.http_build_query([
-            'u_level'        => $level,
-            'utype'          => '',
-            'memberdistrict' => '0',
-            'subGO'          => 'PAPAR',
-        ]);
+        $url = $this->baseUrl.'admin_usrahdetail.asp?u_level='.$level;
 
         $response = $this->get($url);
 
@@ -204,19 +199,34 @@ class ScrapeSpiData extends Command
 
         $crawler = new Crawler($response->body());
 
-        $naqibName  = null;
-        $usrahLabel = null;
-        $members    = []; // ['nama' => string, 'jawatan' => string]
+        $naqibName = null;
+        $members   = [];
 
-        // The usrah label is typically in an input or text near the top —
-        // we derive it from the Naqib row later.
+        // Strategy 1: find Naqib name from the header input field.
+        // The detail page has a row like: | Naqib | <input value="FULL NAME"> |
+        $crawler->filter('tr')->each(function (Crawler $row) use (&$naqibName) {
+            $cellTexts = $row->filter('td')->each(fn (Crawler $c) => trim($c->text()));
+
+            foreach ($cellTexts as $text) {
+                if (strtolower(trim($text)) === 'naqib') {
+                    // The adjacent cell contains an input with the naqib's name
+                    $input = $row->filter('input[type="text"], input:not([type])');
+                    if ($input->count() > 0) {
+                        $val = trim($input->first()->attr('value') ?? '');
+                        if (! empty($val)) {
+                            $naqibName = $val;
+                        }
+                    }
+                    break;
+                }
+            }
+        });
 
         // Walk all tables to find the one with NAMA + JAWATAN header columns
         $crawler->filter('table')->each(function (Crawler $table) use (&$naqibName, &$members) {
             $headerCells = $this->cells($table->filter('tr')->first());
             $upper       = array_map('strtoupper', $headerCells);
 
-            // Must have NAMA and JAWATAN columns
             if (! in_array('NAMA', $upper) || ! in_array('JAWATAN', $upper)) {
                 return;
             }
@@ -231,7 +241,6 @@ class ScrapeSpiData extends Command
                     return;
                 }
 
-                // Skip header row
                 if (strtoupper($cells[$namaIdx] ?? '') === 'NAMA') {
                     return;
                 }
@@ -243,6 +252,7 @@ class ScrapeSpiData extends Command
                     return;
                 }
 
+                // Level 05 usrah groups mark the naqib with JAWATAN = "Naqib"
                 if ($jawatan === 'naqib') {
                     $naqibName = $nama;
                 }
