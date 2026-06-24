@@ -18,12 +18,18 @@ class SpiMember extends Model
         'level',
         'naqib',
         'usrah_label',
+        'jawatankuasa',
+        'usrah_dibawa',
+        'penglibatan_amal',
         'synced_at',
     ];
 
     protected $casts = [
-        'synced_at' => 'datetime',
-        'umur'      => 'integer',
+        'synced_at'        => 'datetime',
+        'umur'             => 'integer',
+        'jawatankuasa'     => 'array',
+        'usrah_dibawa'     => 'array',
+        'penglibatan_amal' => 'array',
     ];
 
     public static function levelLabel(string $level): string

@@ -35,24 +35,9 @@ class ScrapeSpiData extends Command
         $this->jar       = new CookieJar();
         $this->sslVerify = (bool) config('services.spi.ssl_verify', true);
 
-        // Step 1: log in
-        $loginResponse = Http::withOptions(['cookies' => $this->jar, 'verify' => $this->sslVerify])
-            ->asForm()
-            ->post($this->baseUrl.'login.asp', [
-                'u_userid'     => $username,
-                'u_pass'       => $password,
-                'Submitbutton' => 'Login',
-            ]);
-
-        $this->info('Login HTTP status: '.$loginResponse->status());
-
-        if (str_contains($loginResponse->body(), 'Please login')) {
-            $this->error('Login failed — still seeing the login form.');
-
+        if (! $this->login()) {
             return 1;
         }
-
-        $this->info('Login successful.');
 
         // Step 2: scrape member data per level
         foreach ($this->levels as $level) {
@@ -108,10 +93,41 @@ class ScrapeSpiData extends Command
             $this->scrapeNaqibForLevel($level);
         }
 
+        // Step 4: scrape each member's profile page
+        $this->newLine();
+        $this->line('══════════════════════════════════════');
+        $this->info('Fetching member profiles…');
+        $this->scrapeProfiles();
+
         $this->newLine();
         $this->info('Done.');
 
         return 0;
+    }
+
+    // ── Auth ─────────────────────────────────────────────────────────────────
+
+    private function login(): bool
+    {
+        $r = Http::withOptions(['cookies' => $this->jar, 'verify' => $this->sslVerify])
+            ->asForm()
+            ->post($this->baseUrl.'login.asp', [
+                'u_userid'     => config('services.spi.username'),
+                'u_pass'       => config('services.spi.password'),
+                'Submitbutton' => 'Login',
+            ]);
+
+        $this->info('Login HTTP status: '.$r->status());
+
+        if (str_contains($r->body(), 'Please login')) {
+            $this->error('Login failed — still seeing the login form.');
+
+            return false;
+        }
+
+        $this->info('Login successful.');
+
+        return true;
     }
 
     // ── Member scraping ──────────────────────────────────────────────────────
@@ -281,6 +297,178 @@ class ScrapeSpiData extends Command
         if ($updated > 0) {
             $this->line("    Usrah {$usrahId} (Naqib: {$naqibName}): {$updated} member(s) updated.");
         }
+    }
+
+    // ── Profile scraping ─────────────────────────────────────────────────────
+
+    private function scrapeProfiles(): void
+    {
+        // Re-login to ensure fresh session before making 83+ profile requests
+        $this->login();
+
+        $members = SpiMember::all();
+        $total   = $members->count();
+
+        foreach ($members as $i => $member) {
+            // Derive numeric u_id from no_ahli: "IM3939" → "3939"
+            $numericId = ltrim(preg_replace('/^IM/i', '', $member->no_ahli), '0');
+
+            if (empty($numericId)) {
+                continue;
+            }
+
+            $url      = $this->baseUrl."admin_member_detail2.asp?u_id={$numericId}&msg=&showinfo=T";
+            $response = $this->get($url);
+
+            if (! $response->successful()) {
+                $this->warn("  [{$i}/{$total}] HTTP {$response->status()} — {$member->nama} (u_id={$numericId})");
+                continue;
+            }
+
+            // Redirect to login means session expired
+            if (str_contains($response->body(), 'Please login') || str_contains($response->body(), 'login.asp')) {
+                $this->error('Session expired. Re-logging in…');
+                // Re-login
+                $username = config('services.spi.username');
+                $password = config('services.spi.password');
+                Http::withOptions(['cookies' => $this->jar, 'verify' => $this->sslVerify])
+                    ->asForm()
+                    ->post($this->baseUrl.'login.asp', [
+                        'u_userid'     => $username,
+                        'u_pass'       => $password,
+                        'Submitbutton' => 'Login',
+                    ]);
+                $response = $this->get($url);
+            }
+
+            $this->parseProfile($member, $response->body());
+            $this->line("  [{$i}/{$total}] {$member->nama}");
+
+            usleep(200_000); // 200ms between requests
+        }
+    }
+
+    private function parseProfile(SpiMember $member, string $html): void
+    {
+        $crawler          = new Crawler($html);
+        $jawatankuasa     = [];
+        $usrahDibawa      = [];
+        $penglibatanAmal  = [];
+
+        $crawler->filter('table')->each(function (Crawler $table) use (&$jawatankuasa, &$usrahDibawa) {
+            $headerCells = $this->cells($table->filter('tr')->first());
+            $upper       = array_map('strtoupper', $headerCells);
+
+            // ── Jawatankuasa table ──────────────────────────────────────────
+            if (in_array('NAMA JAWATANKUASA', $upper)) {
+                $namaIdx    = array_search('NAMA JAWATANKUASA', $upper);
+                $jawatanIdx = array_search('JAWATAN', $upper);
+                $tarikhIdx  = array_search('TARIKH BENTUK JK', $upper);
+                $bubarIdx   = array_search('TARIKH BUBAR', $upper);
+                $lokaliIdx  = false;
+
+                // "LOKALITI JK" or "LOKALI JK" or "LOKASI JK" — match any variant
+                foreach ($upper as $idx => $h) {
+                    if (str_starts_with($h, 'LOKAL') || str_starts_with($h, 'LOKASI')) {
+                        $lokaliIdx = $idx;
+                        break;
+                    }
+                }
+
+                $table->filter('tr')->each(function (Crawler $row) use (
+                    $namaIdx, $jawatanIdx, $tarikhIdx, $bubarIdx, $lokaliIdx, &$jawatankuasa
+                ) {
+                    $cells = $this->cells($row);
+
+                    // Data rows always start with a numeric BIL
+                    if (empty($cells[0]) || ! is_numeric($cells[0])) {
+                        return;
+                    }
+
+                    $nama = $cells[$namaIdx] ?? '';
+
+                    $jawatankuasa[] = array_filter([
+                        'nama'          => $nama,
+                        'jawatan'       => $jawatanIdx !== false ? ($cells[$jawatanIdx] ?? '') : '',
+                        'tarikh_bentuk' => $tarikhIdx !== false ? ($cells[$tarikhIdx] ?? '') : '',
+                        'tarikh_bubar'  => $bubarIdx !== false ? ($cells[$bubarIdx] ?? '') : '',
+                        'lokaliti'      => $lokaliIdx !== false ? ($cells[$lokaliIdx] ?? '') : '',
+                    ]);
+                });
+            }
+
+            // ── Usrah dibawa table ──────────────────────────────────────────
+            if (in_array('NAMA USRAH', $upper)) {
+                $namaIdx     = array_search('NAMA USRAH', $upper);
+                $tahapIdx    = array_search('TAHAP USRAH', $upper);
+                $kategoriIdx = array_search('KATEGORI', $upper);
+                $tarikhIdx   = array_search('TARIKH BENTUK USRAH', $upper);
+                $bubarIdx    = array_search('TARIKH BUBAR', $upper);
+
+                // "JAWATAN NAQIB" column
+                $jawatanIdx = false;
+                foreach ($upper as $idx => $h) {
+                    if (str_contains($h, 'JAWATAN')) {
+                        $jawatanIdx = $idx;
+                        break;
+                    }
+                }
+
+                $table->filter('tr')->each(function (Crawler $row) use (
+                    $namaIdx, $tahapIdx, $kategoriIdx, $tarikhIdx, $bubarIdx, $jawatanIdx, &$usrahDibawa
+                ) {
+                    $cells = $this->cells($row);
+
+                    if (empty($cells[0]) || ! is_numeric($cells[0])) {
+                        return;
+                    }
+
+                    $nama = $cells[$namaIdx] ?? '';
+
+                    $usrahDibawa[] = array_filter([
+                        'nama'          => $nama,
+                        'jawatan'       => $jawatanIdx !== false ? ($cells[$jawatanIdx] ?? '') : '',
+                        'tahap'         => $tahapIdx !== false ? ($cells[$tahapIdx] ?? '') : '',
+                        'kategori'      => $kategoriIdx !== false ? ($cells[$kategoriIdx] ?? '') : '',
+                        'tarikh_bentuk' => $tarikhIdx !== false ? ($cells[$tarikhIdx] ?? '') : '',
+                        'tarikh_bubar'  => $bubarIdx !== false ? ($cells[$bubarIdx] ?? '') : '',
+                    ]);
+                });
+            }
+        });
+
+        // ── Penglibatan amal: only currently checked checkboxes ─────────────
+        $crawler->filter('input[type="checkbox"]')->each(function (Crawler $cb) use (&$penglibatanAmal) {
+            // DomCrawler represents "checked" as the attribute being present
+            if ($cb->attr('checked') === null) {
+                return;
+            }
+
+            // The label text is in the same <td> as the checkbox
+            $td = null;
+
+            try {
+                $td = $cb->closest('td');
+            } catch (\Exception) {
+                return;
+            }
+
+            if (! $td || $td->count() === 0) {
+                return;
+            }
+
+            $text = trim(preg_replace('/[\s\xc2\xa0]+/', ' ', $td->text()));
+
+            if (! empty($text)) {
+                $penglibatanAmal[] = $text;
+            }
+        });
+
+        $member->update([
+            'jawatankuasa'     => ! empty($jawatankuasa) ? $jawatankuasa : null,
+            'usrah_dibawa'     => ! empty($usrahDibawa) ? $usrahDibawa : null,
+            'penglibatan_amal' => ! empty($penglibatanAmal) ? $penglibatanAmal : null,
+        ]);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

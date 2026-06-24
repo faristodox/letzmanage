@@ -86,6 +86,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Tel</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Naqib</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Peringkat</th>
+                        <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
@@ -109,6 +110,12 @@
                                     {{ \App\Models\SpiMember::levelLabel($member->level) }}
                                 </span>
                             </td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" wire:click="showDetail({{ $member->id }})"
+                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                                    Profil
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -127,4 +134,102 @@
             </div>
         @endif
     </div>
+
+    {{-- Profile detail modal --}}
+    @if ($detailMember)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+             wire:click.self="closeDetail">
+            <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">{{ $detailMember->nama }}</h2>
+                        <p class="text-xs text-slate-500">{{ $detailMember->no_ahli }} &middot; {{ \App\Models\SpiMember::levelLabel($detailMember->level) }}</p>
+                    </div>
+                    <button type="button" wire:click="closeDetail" class="text-slate-400 hover:text-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-6 px-6 py-5">
+                    {{-- Jawatankuasa --}}
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Jawatankuasa</h3>
+                        @if ($detailMember->jawatankuasa)
+                            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                                <table class="min-w-full divide-y divide-slate-200 text-xs">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Nama JK</th>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Jawatan</th>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tarikh</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        @foreach ($detailMember->jawatankuasa as $jk)
+                                            <tr>
+                                                <td class="px-3 py-2 text-slate-800">{{ $jk['nama'] ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-slate-600">{{ $jk['jawatan'] ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-slate-500">{{ $jk['tarikh_bentuk'] ?? '—' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <p class="text-xs text-slate-400">Tiada rekod jawatankuasa.</p>
+                        @endif
+                    </div>
+
+                    {{-- Usrah dibawa --}}
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Usrah Yang Dibawa</h3>
+                        @if ($detailMember->usrah_dibawa)
+                            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                                <table class="min-w-full divide-y divide-slate-200 text-xs">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Nama Usrah</th>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tahap</th>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Kategori</th>
+                                            <th class="px-3 py-2 text-left font-semibold text-slate-500">Tarikh Bentuk</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        @foreach ($detailMember->usrah_dibawa as $usrah)
+                                            <tr>
+                                                <td class="px-3 py-2 text-slate-800">{{ $usrah['nama'] ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-slate-600">{{ $usrah['tahap'] ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-slate-600">{{ $usrah['kategori'] ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-slate-500">{{ $usrah['tarikh_bentuk'] ?? '—' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <p class="text-xs text-slate-400">Tiada rekod usrah dibawa.</p>
+                        @endif
+                    </div>
+
+                    {{-- Penglibatan amal --}}
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Penglibatan Amal (Semasa)</h3>
+                        @if ($detailMember->penglibatan_amal)
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($detailMember->penglibatan_amal as $item)
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                                        {{ $item }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-xs text-slate-400">Tiada rekod penglibatan amal.</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
