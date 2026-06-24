@@ -362,27 +362,21 @@ class ScrapeSpiData extends Command
             $upper       = array_map('strtoupper', $headerCells);
 
             // ── Jawatankuasa table ──────────────────────────────────────────
-            if (in_array('NAMA JAWATANKUASA', $upper)) {
-                $namaIdx    = array_search('NAMA JAWATANKUASA', $upper);
-                $jawatanIdx = array_search('JAWATAN', $upper);
-                $tarikhIdx  = array_search('TARIKH BENTUK JK', $upper);
-                $bubarIdx   = array_search('TARIKH BUBAR', $upper);
-                $lokaliIdx  = false;
+            // Use str_contains to tolerate extra spaces or non-breaking spaces in headers
+            $namaJkIdx = $this->findColIdx($upper, 'NAMA JAWATANKUASA');
 
-                // "LOKALITI JK" or "LOKALI JK" or "LOKASI JK" — match any variant
-                foreach ($upper as $idx => $h) {
-                    if (str_starts_with($h, 'LOKAL') || str_starts_with($h, 'LOKASI')) {
-                        $lokaliIdx = $idx;
-                        break;
-                    }
-                }
+            if ($namaJkIdx !== false) {
+                $namaIdx    = $namaJkIdx;
+                $jawatanIdx = $this->findColIdx($upper, 'JAWATAN');
+                $tarikhIdx  = $this->findColIdx($upper, 'TARIKH BENTUK JK') ?? $this->findColIdx($upper, 'TARIKH BENTUK');
+                $bubarIdx   = $this->findColIdx($upper, 'TARIKH BUBAR');
+                $lokaliIdx  = $this->findColIdx($upper, 'LOKAL') ?? $this->findColIdx($upper, 'LOKASI');
 
                 $table->filter('tr')->each(function (Crawler $row) use (
                     $namaIdx, $jawatanIdx, $tarikhIdx, $bubarIdx, $lokaliIdx, &$jawatankuasa
                 ) {
                     $cells = $this->cells($row);
 
-                    // Data rows always start with a numeric BIL
                     if (empty($cells[0]) || ! is_numeric($cells[0])) {
                         return;
                     }
@@ -400,12 +394,14 @@ class ScrapeSpiData extends Command
             }
 
             // ── Usrah dibawa table ──────────────────────────────────────────
-            if (in_array('NAMA USRAH', $upper)) {
-                $namaIdx     = array_search('NAMA USRAH', $upper);
-                $tahapIdx    = array_search('TAHAP USRAH', $upper);
-                $kategoriIdx = array_search('KATEGORI', $upper);
-                $tarikhIdx   = array_search('TARIKH BENTUK USRAH', $upper);
-                $bubarIdx    = array_search('TARIKH BUBAR', $upper);
+            $namaUsrahIdx = $this->findColIdx($upper, 'NAMA USRAH');
+
+            if ($namaUsrahIdx !== false) {
+                $namaIdx     = $namaUsrahIdx;
+                $tahapIdx    = $this->findColIdx($upper, 'TAHAP USRAH') ?? $this->findColIdx($upper, 'TAHAP');
+                $kategoriIdx = $this->findColIdx($upper, 'KATEGORI');
+                $tarikhIdx   = $this->findColIdx($upper, 'TARIKH BENTUK USRAH') ?? $this->findColIdx($upper, 'TARIKH BENTUK');
+                $bubarIdx    = $this->findColIdx($upper, 'TARIKH BUBAR');
 
                 // "JAWATAN NAQIB" column
                 $jawatanIdx = false;
@@ -474,6 +470,21 @@ class ScrapeSpiData extends Command
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Find the first column index whose uppercased value contains $needle.
+     * Returns false if not found.
+     */
+    private function findColIdx(array $upper, string $needle): int|false
+    {
+        foreach ($upper as $idx => $h) {
+            if (str_contains($h, strtoupper($needle))) {
+                return $idx;
+            }
+        }
+
+        return false;
+    }
 
     private function get(string $url)
     {
