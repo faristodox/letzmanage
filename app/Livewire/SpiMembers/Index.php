@@ -67,7 +67,7 @@ class Index extends Component
                 });
             })
             ->when($this->filterLevel, fn ($q) => $q->where('level', $this->filterLevel))
-            ->when($this->filterJantina, fn ($q) => $q->where('jantina', $this->filterJantina))
+            ->when($this->filterJantina, fn ($q) => $q->where('jantina', 'like', "%{$this->filterJantina}%"))
             ->orderBy('level')
             ->orderBy('nama')
             ->paginate(20);

@@ -110,7 +110,7 @@ class ScrapeSpiData extends Command
 
         $dataTable->filter('tr')->each(function (Crawler $row) use (&$members, $level) {
             $cells = $row->filter('td, th')->each(
-                fn (Crawler $cell) => trim($cell->text())
+                fn (Crawler $cell) => trim(preg_replace('/[\s\xc2\xa0]+/', ' ', $cell->text()))
             );
 
             // Member rows have a numeric BIL in column 0 and at least 9 columns
