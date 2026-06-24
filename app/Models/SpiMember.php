@@ -16,6 +16,8 @@ class SpiMember extends Model
         'kawasan',
         'no_tel',
         'level',
+        'naqib',
+        'usrah_label',
         'synced_at',
     ];
 

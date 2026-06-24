@@ -84,6 +84,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Jantina</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ktgr</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Tel</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Naqib</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Peringkat</th>
                     </tr>
                 </thead>
@@ -101,6 +102,7 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->kategori }}</td>
                             <td class="px-4 py-3 text-sm text-slate-600 font-mono">{{ $member->no_tel ?: '—' }}</td>
+                            <td class="px-4 py-3 text-sm text-slate-600">{{ $member->naqib ?: '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
                                     {{ $member->level === '05' ? 'bg-violet-100 text-violet-700' : ($member->level === '04' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700') }}">
