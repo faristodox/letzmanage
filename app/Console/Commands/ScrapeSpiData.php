@@ -322,6 +322,11 @@ class ScrapeSpiData extends Command
             $url      = $this->baseUrl."admin_member_detail2.asp?u_id={$numericId}&msg=&showinfo=T";
             $response = $this->get($url);
 
+            // Some member IDs return 500 with showinfo=T — retry without it
+            if ($response->status() === 500) {
+                $response = $this->get($this->baseUrl."admin_member_detail2.asp?u_id={$numericId}");
+            }
+
             if (! $response->successful()) {
                 $this->warn("  [{$i}/{$total}] HTTP {$response->status()} — {$member->nama} (u_id={$numericId})");
                 continue;
