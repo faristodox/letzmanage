@@ -52,20 +52,21 @@ class Index extends Component
 
     public function sync(): void
     {
-        $this->syncing     = true;
-        $this->syncMessage = null;
+        $this->syncing  = true;
+        $this->detailId = null; // close modal before long operation
 
         try {
             Artisan::call('spi:scrape');
-            $this->syncMessage  = 'Sync completed. Member data is now up to date.';
-            $this->syncSuccess  = true;
         } catch (\Throwable $e) {
             $this->syncMessage = 'Sync failed: '.$e->getMessage();
             $this->syncSuccess = false;
+            $this->syncing     = false;
+
+            return;
         }
 
-        $this->syncing = false;
-        $this->resetPage();
+        // Redirect for a clean re-render after the long sync
+        $this->redirect(route('spi-members.index'), navigate: true);
     }
 
     public function render()
