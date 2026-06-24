@@ -148,10 +148,20 @@ class ScrapeSpiData extends Command
                 return;
             }
 
+            // Extract the real SPI internal u_id from the profile link in the PILIH column
+            $spiUid = null;
+            $row->filter('a')->each(function (Crawler $a) use (&$spiUid) {
+                $href = $a->attr('href') ?? '';
+                if (preg_match('/admin_member_detail(?:2)?\.asp\?u_id=(\d+)/i', $href, $m)) {
+                    $spiUid = (int) $m[1];
+                }
+            });
+
             $members[] = [
                 'nama'     => $cells[1],
-                'no_ahli'  => preg_replace('/\s+/', '', $cells[2]), // strip ALL whitespace from ID
-                'no_kp'    => preg_replace('/\s+/', '', $cells[3]), // same for IC
+                'no_ahli'  => preg_replace('/\s+/', '', $cells[2]),
+                'spi_uid'  => $spiUid,
+                'no_kp'    => preg_replace('/\s+/', '', $cells[3]),
                 'umur'     => (int) $cells[4],
                 'jantina'  => $cells[5],
                 'kategori' => $cells[6],
@@ -312,23 +322,24 @@ class ScrapeSpiData extends Command
         $total   = $members->count();
 
         foreach ($members as $i => $member) {
-            // Derive numeric u_id from no_ahli: "IM3939" → "3939"
-            $numericId = ltrim(preg_replace('/^IM/i', '', $member->no_ahli), '0');
+            // Use the real SPI internal u_id (captured from member list link)
+            $uid = $member->spi_uid
+                ?? ltrim(preg_replace('/^IM/i', '', $member->no_ahli), '0'); // fallback
 
-            if (empty($numericId)) {
+            if (empty($uid)) {
                 continue;
             }
 
-            $url      = $this->baseUrl."admin_member_detail2.asp?u_id={$numericId}&msg=&showinfo=T";
+            $url      = $this->baseUrl."admin_member_detail2.asp?u_id={$uid}&msg=&showinfo=T";
             $response = $this->get($url);
 
-            // Some member IDs return 500 with showinfo=T — retry without it
+            // Retry without showinfo=T if 500
             if ($response->status() === 500) {
-                $response = $this->get($this->baseUrl."admin_member_detail2.asp?u_id={$numericId}");
+                $response = $this->get($this->baseUrl."admin_member_detail2.asp?u_id={$uid}");
             }
 
             if (! $response->successful()) {
-                $this->warn("  [{$i}/{$total}] HTTP {$response->status()} — {$member->nama} (u_id={$numericId})");
+                $this->warn("  [{$i}/{$total}] HTTP {$response->status()} — {$member->nama} (u_id={$uid})");
                 continue;
             }
 

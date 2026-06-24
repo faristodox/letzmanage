@@ -8,6 +8,7 @@ class SpiMember extends Model
 {
     protected $fillable = [
         'no_ahli',
+        'spi_uid',
         'nama',
         'no_kp',
         'umur',
