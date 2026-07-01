@@ -21,20 +21,14 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full border-collapse table-fixed">
-                <colgroup>
-                    <col class="w-full">
-                    @foreach ($roles as $role)
-                        <col style="width: 120px; min-width: 120px;">
-                    @endforeach
-                </colgroup>
+            <table class="w-full border-collapse">
                 <thead>
                     <tr class="border-y border-slate-200 bg-slate-50">
-                        <th class="py-3 pl-6 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th class="py-3 pl-6 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500" style="width: 100%">
                             {{ __('Permission') }}
                         </th>
                         @foreach ($roles as $role)
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide">
+                            <th class="py-3 text-center text-xs font-semibold uppercase tracking-wide whitespace-nowrap" style="width: 120px; min-width: 120px">
                                 @if ($role === \App\Enums\RoleName::Admin)
                                     <span class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
