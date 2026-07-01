@@ -80,6 +80,7 @@
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Ahli</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Umur</th>
@@ -106,6 +107,7 @@
 
                         <tr wire:key="member-{{ $member->id }}" class="hover:bg-slate-50">
                             {{-- Basic info --}}
+                            <td class="px-4 py-3 text-sm text-slate-400 tabular-nums">{{ $members->firstItem() + $loop->index }}</td>
                             <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ $member->nama }}</td>
                             <td class="px-4 py-3 text-sm font-mono text-slate-600">{{ $member->no_ahli }}</td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->umur }}</td>
@@ -184,7 +186,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="px-4 py-12 text-center text-sm text-slate-500">
+                            <td colspan="11" class="px-4 py-12 text-center text-sm text-slate-500">
                                 Tiada rekod ditemui.
                             </td>
                         </tr>
