@@ -210,7 +210,7 @@
         <div class="absolute inset-0 bg-slate-900/50" @click="close()"></div>
 
         {{-- Panel --}}
-        <div class="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
+        <div class="relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-xl overflow-y-auto" style="max-height: 85vh">
             <template x-if="member">
                 <div>
                     {{-- Header --}}
