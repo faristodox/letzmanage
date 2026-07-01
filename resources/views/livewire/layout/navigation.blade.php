@@ -75,34 +75,29 @@ new class extends Component
              :class="$store.sidebar.collapsed ? 'px-2' : 'px-6'">
 
             <!-- Logo + collapse toggle -->
-            <div class="flex items-center" :class="$store.sidebar.collapsed ? 'justify-center' : 'justify-between'">
+            {{-- Expanded: logo + name + collapse button --}}
+            <div x-show="!$store.sidebar.collapsed" x-cloak class="flex items-center justify-between">
                 <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2.5 min-w-0 overflow-hidden">
                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-base font-bold text-white shadow-sm shadow-indigo-200">
                         L
                     </div>
-                    <span x-show="!$store.sidebar.collapsed" x-cloak class="text-lg font-bold tracking-tight text-slate-900 truncate">
+                    <span class="text-lg font-bold tracking-tight text-slate-900 truncate">
                         {{ config('app.name', 'Letz Manage') }}
                     </span>
                 </a>
-
-                <button x-show="!$store.sidebar.collapsed"
-                        x-cloak
-                        @click="$store.sidebar.toggle()"
-                        type="button"
-                        title="Collapse sidebar"
+                <button @click="$store.sidebar.toggle()" type="button" title="Collapse sidebar"
                         class="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                     </svg>
                 </button>
+            </div>
 
-                <button x-show="$store.sidebar.collapsed"
-                        x-cloak
-                        @click="$store.sidebar.toggle()"
-                        type="button"
-                        title="Expand sidebar"
-                        class="mt-1 shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+            {{-- Collapsed: just the expand button centered --}}
+            <div x-show="$store.sidebar.collapsed" x-cloak class="flex justify-center">
+                <button @click="$store.sidebar.toggle()" type="button" title="Expand sidebar"
+                        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                 </button>
