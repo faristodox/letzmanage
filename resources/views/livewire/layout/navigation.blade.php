@@ -68,15 +68,15 @@ new class extends Component
 
     <!-- Desktop sidebar -->
     <aside class="hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col"
-           style="transition: width 0.2s ease;"
-           :style="$store.sidebar.collapsed ? 'width: 4rem' : 'width: 18rem'">
-        <div class="flex grow flex-col gap-y-5 overflow-y-auto overflow-x-hidden border-r border-slate-200 bg-white py-6"
+           style="width: 18rem; transition: width 0.2s ease;"
+           :style="($store.sidebar?.collapsed) ? 'width: 4rem' : 'width: 18rem'">
+        <div class="flex grow flex-col gap-y-5 overflow-y-auto overflow-x-hidden border-r border-slate-200 bg-white px-6 py-6"
              style="transition: padding 0.2s ease;"
-             :class="$store.sidebar.collapsed ? 'px-2' : 'px-6'">
+             :class="($store.sidebar?.collapsed) ? 'px-2' : 'px-6'">
 
             <!-- Logo + collapse toggle -->
             {{-- Expanded: logo + name + collapse button --}}
-            <div x-show="!$store.sidebar.collapsed" x-cloak class="flex items-center justify-between">
+            <div x-show="!($store.sidebar?.collapsed)" class="flex items-center justify-between">
                 <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2.5 min-w-0 overflow-hidden">
                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-base font-bold text-white shadow-sm shadow-indigo-200">
                         L
@@ -94,7 +94,7 @@ new class extends Component
             </div>
 
             {{-- Collapsed: just the expand button centered --}}
-            <div x-show="$store.sidebar.collapsed" x-cloak class="flex justify-center">
+            <div x-show="$store.sidebar?.collapsed" x-cloak class="flex justify-center">
                 <button @click="$store.sidebar.toggle()" type="button" title="Expand sidebar"
                         class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">

@@ -25,7 +25,10 @@
         </style>
 
         <script>
-            document.addEventListener('alpine:init', () => {
+            function registerSidebarStore() {
+                if (! window.Alpine || Alpine.store('sidebar')) {
+                    return;
+                }
                 Alpine.store('sidebar', {
                     collapsed: localStorage.getItem('sidebarCollapsed') === 'true',
                     toggle() {
@@ -33,14 +36,20 @@
                         localStorage.setItem('sidebarCollapsed', this.collapsed);
                     }
                 });
-            });
+            }
+            // Full page load: Alpine not started yet.
+            document.addEventListener('alpine:init', registerSidebarStore);
+            // wire:navigate (e.g. after login): Alpine already running, alpine:init won't fire again.
+            document.addEventListener('livewire:navigated', registerSidebarStore);
+            // In case Alpine is already running when this script executes (wire:navigate head swap).
+            registerSidebarStore();
         </script>
     </head>
     <body class="font-sans antialiased text-slate-900">
         <div class="min-h-screen bg-slate-50">
             <livewire:layout.navigation />
 
-            <div x-data class="main-content" :class="$store.sidebar.collapsed ? 'sidebar-collapsed' : ''">
+            <div x-data class="main-content" :class="($store.sidebar?.collapsed) ? 'sidebar-collapsed' : ''">
                 <div class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
                     <div class="flex items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
                         <div class="min-w-0 flex-1">
