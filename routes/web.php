@@ -19,9 +19,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('office-spaces', 'office-spaces.index')->name('office-spaces.index');
     Route::view('users', 'users.index')->name('users.index');
     Route::view('settings', 'settings.index')->name('settings.index');
+    Route::view('roles', 'roles.index')->name('roles.index')->can('manage roles');
     Route::view('bookings', 'bookings.index')->name('bookings.index');
     Route::view('bookings/calendar', 'bookings.calendar')->name('bookings.calendar');
-    Route::view('spi-members', 'spi-members.index')->name('spi-members.index');
+    Route::view('spi-members', 'spi-members.index')->name('spi-members.index')->can('view spi data');
 });
 
 Route::post('telegram/webhook', App\Http\Controllers\TelegramWebhookController::class);
