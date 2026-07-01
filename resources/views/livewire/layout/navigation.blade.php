@@ -67,10 +67,10 @@ new class extends Component
     </div>
 
     <!-- Desktop sidebar -->
-    <aside class="hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col overflow-hidden"
+    <aside class="hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col"
            style="transition: width 0.2s ease;"
            :style="$store.sidebar.collapsed ? 'width: 4rem' : 'width: 18rem'">
-        <div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-slate-200 bg-white py-6"
+        <div class="flex grow flex-col gap-y-5 overflow-y-auto overflow-x-hidden border-r border-slate-200 bg-white py-6"
              style="transition: padding 0.2s ease;"
              :class="$store.sidebar.collapsed ? 'px-2' : 'px-6'">
 
