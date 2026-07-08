@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['branch_id', 'parent_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status'])]
+#[Fillable(['branch_id', 'parent_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status', 'maintenance_note', 'maintenance_until'])]
 class OfficeSpace extends Model
 {
     use HasFactory;
@@ -22,7 +22,13 @@ class OfficeSpace extends Model
             'status' => OfficeSpaceStatus::class,
             'facilities' => 'array',
             'capacity' => 'integer',
+            'maintenance_until' => 'date',
         ];
+    }
+
+    public function isUnderMaintenance(): bool
+    {
+        return $this->status === OfficeSpaceStatus::Maintenance;
     }
 
     /**

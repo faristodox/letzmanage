@@ -45,6 +45,12 @@ class Index extends Component
     #[Validate('nullable|integer|exists:office_spaces,id')]
     public ?int $parent_id = null;
 
+    #[Validate('nullable|string|max:500')]
+    public string $maintenance_note = '';
+
+    #[Validate('nullable|date')]
+    public ?string $maintenance_until = null;
+
     #[Validate('nullable|image|max:2048')]
     public $image = null;
 
@@ -67,7 +73,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'name', 'facilities', 'image', 'existingImagePath', 'removeImage', 'parent_id']);
+        $this->reset(['editingId', 'name', 'facilities', 'image', 'existingImagePath', 'removeImage', 'parent_id', 'maintenance_note', 'maintenance_until']);
         $this->type_id = OfficeSpaceType::orderBy('name')->value('id');
         $this->status = OfficeSpaceStatus::Active->value;
         $this->capacity = 1;
@@ -94,6 +100,8 @@ class Index extends Component
         $this->capacity = $space->capacity;
         $this->facilities = implode(', ', $space->facilities ?? []);
         $this->status = $space->status->value;
+        $this->maintenance_note = $space->maintenance_note ?? '';
+        $this->maintenance_until = $space->maintenance_until?->format('Y-m-d');
         $this->branch_id = $space->branch_id;
         $this->existingImagePath = $space->image_path;
         $this->parent_id = $space->parent_id;
@@ -112,6 +120,15 @@ class Index extends Component
 
         $data['parent_id'] = $this->parent_id ?: null;
         unset($data['image'], $data['removeImage']);
+
+        // Maintenance notice only applies while the space is under maintenance.
+        if ($this->status === OfficeSpaceStatus::Maintenance->value) {
+            $data['maintenance_note'] = $this->maintenance_note !== '' ? $this->maintenance_note : null;
+            $data['maintenance_until'] = $this->maintenance_until ?: null;
+        } else {
+            $data['maintenance_note'] = null;
+            $data['maintenance_until'] = null;
+        }
 
         if ($this->image) {
             if ($space?->image_path) {

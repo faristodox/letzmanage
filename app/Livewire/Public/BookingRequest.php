@@ -74,7 +74,16 @@ class BookingRequest extends Component
 
     public function selectSpace(int $spaceId): void
     {
-        $this->space_id = $spaceId;
+        // Only active spaces are bookable; ignore maintenance/invalid ids.
+        $space = OfficeSpace::query()
+            ->where('status', OfficeSpaceStatus::Active)
+            ->find($spaceId);
+
+        if (! $space) {
+            return;
+        }
+
+        $this->space_id = $space->id;
         $this->date = now()->format('Y-m-d');
         $this->weekOffset = 0;
         $this->start_time = '';
@@ -222,8 +231,9 @@ class BookingRequest extends Component
         if ($this->branch_id) {
             $spaces = OfficeSpace::query()
                 ->where('branch_id', $this->branch_id)
-                ->where('status', OfficeSpaceStatus::Active)
-                ->with('type')
+                ->whereIn('status', [OfficeSpaceStatus::Active, OfficeSpaceStatus::Maintenance])
+                ->with(['type', 'parent'])
+                ->orderBy('status') // 'active' sorts before 'maintenance'
                 ->orderBy('name')
                 ->get();
         }

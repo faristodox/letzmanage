@@ -59,10 +59,13 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $space->type->name }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $space->capacity }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $space->facilities ? implode(', ', $space->facilities) : '—' }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                        <td class="px-6 py-4 text-sm">
                             <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $space->status === App\Enums\OfficeSpaceStatus::Active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-amber-50 text-amber-700 ring-amber-600/20' }}">
                                 {{ ucfirst($space->status->value) }}
                             </span>
+                            @if ($space->status === App\Enums\OfficeSpaceStatus::Maintenance && $space->maintenance_until)
+                                <p class="mt-1 text-xs text-amber-600 whitespace-nowrap">until {{ $space->maintenance_until->format('j M Y') }}</p>
+                            @endif
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium space-x-3">
                             @can('update', $space)
@@ -93,7 +96,7 @@
             <div class="fixed inset-0 bg-slate-900/50" wire:click="closeModal"></div>
 
             <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-md">
-                <form wire:submit="save" class="p-6 sm:p-8">
+                <form wire:submit="save" class="p-6 sm:p-8" x-data="{ status: @js($status) }">
                     <h2 class="text-lg font-semibold text-slate-900">
                         {{ $editingId ? __('Edit Office Space') : __('Add Office Space') }}
                     </h2>
@@ -180,12 +183,30 @@
 
                     <div class="mt-4">
                         <x-input-label for="status" :value="__('Status')" />
-                        <select wire:model="status" id="status" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model="status" x-on:change="status = $event.target.value" id="status" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @foreach ($statuses as $statusOption)
                                 <option value="{{ $statusOption->value }}">{{ ucfirst($statusOption->value) }}</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                    </div>
+
+                    {{-- Maintenance / renovation notice — only relevant while under maintenance --}}
+                    <div x-show="status === 'maintenance'" x-cloak class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <p class="text-sm font-semibold text-amber-800">{{ __('Maintenance notice') }}</p>
+                        <p class="mt-0.5 text-xs text-amber-600">{{ __('Shown to visitors on the public booking page. The space cannot be booked while under maintenance.') }}</p>
+
+                        <div class="mt-3">
+                            <x-input-label for="maintenance_note" :value="__('Notice message (optional)')" />
+                            <textarea wire:model="maintenance_note" id="maintenance_note" rows="2" maxlength="500" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="{{ __('e.g. Closed for renovation. Sorry for the inconvenience.') }}"></textarea>
+                            <x-input-error :messages="$errors->get('maintenance_note')" class="mt-2" />
+                        </div>
+
+                        <div class="mt-3">
+                            <x-input-label for="maintenance_until" :value="__('Expected to reopen (optional)')" />
+                            <x-text-input wire:model="maintenance_until" id="maintenance_until" type="date" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('maintenance_until')" class="mt-2" />
+                        </div>
                     </div>
 
                     <div class="mt-6 flex justify-end gap-3">
