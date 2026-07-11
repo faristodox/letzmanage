@@ -6,7 +6,7 @@
 }">
     {{-- Stats bar --}}
     <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        @foreach (['01' => 'Modul 01', '02' => 'Modul 02', '03' => 'Modul 03 (AA)', '04' => 'Modul 04 (AA)', '05' => 'Modul 05 (AT)'] as $lvl => $label)
+        @foreach (['01' => 'Modul 01 (AB)', '02' => 'Modul 02 (AB)', '03' => 'Modul 03 (AA)', '04' => 'Modul 04 (AA)', '05' => 'Modul 05 (AT)'] as $lvl => $label)
             <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $label }}</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ $stats[$lvl] ?? 0 }}</p>
