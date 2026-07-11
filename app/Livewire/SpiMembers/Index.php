@@ -58,9 +58,9 @@ class Index extends Component
         $this->redirect(route('spi-members.index'), navigate: true);
     }
 
-    public function render()
+    private function filteredQuery()
     {
-        $members = SpiMember::query()
+        return SpiMember::query()
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
@@ -71,8 +71,53 @@ class Index extends Component
             ->when($this->filterLevel, fn ($q) => $q->where('level', $this->filterLevel))
             ->when($this->filterJantina, fn ($q) => $q->where('jantina', 'like', "%{$this->filterJantina}%"))
             ->orderBy('level')
-            ->orderBy('nama')
-            ->paginate(20);
+            ->orderBy('nama');
+    }
+
+    public function export(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $members = $this->filteredQuery()->get();
+        $filename = 'ahli-modul-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($members) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel reads Malay names correctly
+
+            fputcsv($out, [
+                'Bil', 'No. Ahli', 'Nama', 'No. KP', 'Umur', 'Jantina', 'Kategori',
+                'Kawasan', 'No. Tel', 'Peringkat', 'Naqib',
+                'Jawatankuasa Terkini', 'Usrah Dibawa Terkini', 'Penglibatan Amal',
+            ]);
+
+            foreach ($members as $i => $m) {
+                $latestJk = $m->jawatankuasa ? last($m->jawatankuasa) : null;
+                $latestUsrah = $m->usrah_dibawa ? last($m->usrah_dibawa) : null;
+
+                fputcsv($out, [
+                    $i + 1,
+                    $m->no_ahli,
+                    $m->nama,
+                    $m->maskedNoKp(),
+                    $m->umur,
+                    $m->jantina,
+                    $m->kategori,
+                    $m->kawasan,
+                    $m->no_tel,
+                    SpiMember::levelLabel($m->level),
+                    $m->naqib,
+                    $latestJk['jawatan'] ?? '',
+                    $latestUsrah['nama'] ?? '',
+                    $m->penglibatan_amal ? implode(', ', $m->penglibatan_amal) : '',
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function render()
+    {
+        $members = $this->filteredQuery()->paginate(20);
 
         $stats = SpiMember::query()
             ->selectRaw('level, count(*) as total')

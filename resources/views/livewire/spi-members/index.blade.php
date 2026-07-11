@@ -47,6 +47,18 @@
             </select>
         </div>
 
+        <div class="flex gap-2">
+        <button
+            type="button"
+            wire:click="export"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export CSV
+        </button>
+
         <button
             type="button"
             wire:click="sync"
@@ -63,6 +75,7 @@
             <span wire:loading.remove wire:target="sync">Sync dari SPI</span>
             <span wire:loading wire:target="sync">Menyegerak…</span>
         </button>
+        </div>
     </div>
 
     @if ($syncMessage)

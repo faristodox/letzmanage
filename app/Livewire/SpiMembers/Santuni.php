@@ -42,9 +42,9 @@ class Santuni extends Component
         $this->redirect(route('spi-members.index'), navigate: true);
     }
 
-    public function render()
+    private function filteredQuery()
     {
-        $members = SpiSantuniMember::query()
+        return SpiSantuniMember::query()
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
@@ -52,8 +52,45 @@ class Santuni extends Component
                 });
             })
             ->when($this->filterJantina, fn ($q) => $q->where('jantina', 'like', "%{$this->filterJantina}%"))
-            ->orderBy('nama')
-            ->paginate(20);
+            ->orderBy('nama');
+    }
+
+    public function export(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $members = $this->filteredQuery()->get();
+        $filename = 'ahli-baru-disantuni-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($members) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+
+            fputcsv($out, [
+                'Bil', 'Nama', 'No. KP', 'Umur', 'Peringkat', 'Jantina',
+                'Kategori', 'No. Tel', 'Tarikh Semak', 'Tarikh Lulus',
+            ]);
+
+            foreach ($members as $i => $m) {
+                fputcsv($out, [
+                    $i + 1,
+                    $m->nama,
+                    $m->maskedNoKp(),
+                    $m->umur,
+                    $m->peringkat,
+                    $m->jantina,
+                    $m->kategori,
+                    $m->no_tel,
+                    $m->tarikh_semak,
+                    $m->tarikh_lulus,
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function render()
+    {
+        $members = $this->filteredQuery()->paginate(20);
 
         $lastSync = SpiSantuniMember::max('synced_at');
 
