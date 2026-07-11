@@ -112,7 +112,7 @@
                                     <div class="p-4">
                                         <div class="flex items-center justify-between gap-2">
                                             <h3 class="font-semibold text-slate-600">{{ $space->name }}</h3>
-                                            <span class="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">{{ $space->type->name }}</span>
+                                            <span class="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">{{ $space->type?->name }}</span>
                                         </div>
 
                                         <div class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -138,7 +138,7 @@
                                     <div class="p-4">
                                         <div class="flex items-center justify-between gap-2">
                                             <h3 class="font-semibold text-slate-900">{{ $space->name }}</h3>
-                                            <span class="whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">{{ $space->type->name }}</span>
+                                            <span class="whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">{{ $space->type?->name }}</span>
                                         </div>
                                         @if ($space->parent)
                                             <p class="mt-0.5 text-xs text-violet-600">Part of {{ $space->parent->name }}</p>
@@ -186,7 +186,7 @@
                         @endif
                         <div>
                             <h3 class="font-semibold text-slate-900">{{ $selectedSpace->name }}</h3>
-                            <p class="text-sm text-slate-500">{{ $selectedSpace->type->name }} &middot; Up to {{ $selectedSpace->capacity }} {{ \Illuminate\Support\Str::plural('person', $selectedSpace->capacity) }}</p>
+                            <p class="text-sm text-slate-500">{{ $selectedSpace->type?->name }} &middot; Up to {{ $selectedSpace->capacity }} {{ \Illuminate\Support\Str::plural('person', $selectedSpace->capacity) }}</p>
                         </div>
                     </div>
                     <button type="button" wire:click="backToSpaces" class="whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-700">

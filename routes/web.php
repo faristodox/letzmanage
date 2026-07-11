@@ -1,10 +1,30 @@
 <?php
 
+use App\Enums\OrganizationStatus;
+use App\Models\Organization;
+use App\Support\CurrentOrganization;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
 
-Route::view('book', 'public.booking')->name('booking.request');
+// Public guest booking page, scoped to one organization by its slug.
+Route::get('book/{organization:slug}', function (Organization $organization) {
+    abort_if($organization->status === OrganizationStatus::Suspended, 404);
+
+    app(CurrentOrganization::class)->set($organization);
+
+    return view('public.booking', ['organization' => $organization]);
+})->name('booking.request');
+
+// Backward-compatible shortcut: /book redirects to the first organization's page
+// so existing links/QR codes keep working.
+Route::get('book', function () {
+    $organization = Organization::orderBy('id')->first();
+
+    abort_unless($organization, 404);
+
+    return redirect()->route('booking.request', $organization->slug);
+});
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

@@ -9,7 +9,9 @@ use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\OfficeSpace;
+use App\Models\Organization;
 use App\Services\BookingService;
+use App\Support\CurrentOrganization;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -19,6 +21,8 @@ class BookingRequest extends Component
     private const MAX_DURATION_MINUTES = 1440;
 
     public int $step = 1;
+
+    public ?int $organizationId = null;
 
     public ?int $branch_id = null;
 
@@ -48,8 +52,23 @@ class BookingRequest extends Component
 
     public int $slotInterval = 30;
 
+    /**
+     * Runs on every Livewire request (initial + updates). Re-establishes the
+     * organization (tenant) context so all queries stay scoped to the org whose
+     * public booking page this is — the slug isn't present on update requests.
+     */
+    public function boot(): void
+    {
+        if ($this->organizationId) {
+            app(CurrentOrganization::class)->set(Organization::find($this->organizationId));
+        }
+    }
+
     public function mount(): void
     {
+        // Set by the /book/{org-slug} route; persist it so boot() can restore it.
+        $this->organizationId = app(CurrentOrganization::class)->id();
+
         $this->date = now()->format('Y-m-d');
 
         $activeBranches = Branch::query()->where('status', BranchStatus::Active)->orderBy('name')->get();

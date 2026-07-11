@@ -78,7 +78,7 @@
                                     </a>
                                 @endauth
 
-                                <a href="{{ route('booking.request') }}"
+                                <a href="{{ url('/book') }}"
                                    class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
                                     Request a booking
                                 </a>
@@ -340,7 +340,7 @@
                                class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-lg transition hover:-translate-y-0.5">
                                 Sign in to your account
                             </a>
-                            <a href="{{ route('booking.request') }}"
+                            <a href="{{ url('/book') }}"
                                class="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
                                 Request a booking
                             </a>
