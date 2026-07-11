@@ -5,8 +5,8 @@
     close() { this.open = false; this.member = null; }
 }">
     {{-- Stats bar --}}
-    <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        @foreach (['01' => 'Modul 01 (AB)', '02' => 'Modul 02 (AB)', '03' => 'Modul 03 (AA)', '04' => 'Modul 04 (AA)', '05' => 'Modul 05 (AT)'] as $lvl => $label)
+    <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+        @foreach (['00' => 'Modul 00 (AB)', '01' => 'Modul 01 (AB)', '02' => 'Modul 02 (AB)', '03' => 'Modul 03 (AA)', '04' => 'Modul 04 (AA)', '05' => 'Modul 05 (AT)'] as $lvl => $label)
             <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $label }}</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ $stats[$lvl] ?? 0 }}</p>
@@ -32,6 +32,7 @@
 
             <select wire:model.live="filterLevel" class="rounded-lg border-slate-200 py-2 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 <option value="">Semua peringkat</option>
+                <option value="00">Modul 00</option>
                 <option value="01">Modul 01</option>
                 <option value="02">Modul 02</option>
                 <option value="03">Modul 03</option>
