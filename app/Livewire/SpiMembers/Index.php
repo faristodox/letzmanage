@@ -74,6 +74,15 @@ class Index extends Component
             ->orderBy('nama');
     }
 
+    /**
+     * Wrap a value as an Excel text formula so Excel/Sheets keep it as text
+     * (e.g. phone numbers keep their leading 0 instead of being read as numbers).
+     */
+    private function excelText(?string $value): string
+    {
+        return ($value === null || $value === '') ? '' : '="'.$value.'"';
+    }
+
     public function export(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $members = $this->filteredQuery()->get();
@@ -83,7 +92,9 @@ class Index extends Component
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel reads Malay names correctly
 
-            fputcsv($out, [
+            $put = fn (array $fields) => fputcsv($out, $fields, ',', '"', '');
+
+            $put([
                 'Bil', 'No. Ahli', 'Nama', 'No. KP', 'Umur', 'Jantina', 'Kategori',
                 'Kawasan', 'No. Tel', 'Peringkat', 'Naqib',
                 'Jawatankuasa Terkini', 'Usrah Dibawa Terkini', 'Penglibatan Amal',
@@ -93,7 +104,7 @@ class Index extends Component
                 $latestJk = $m->jawatankuasa ? last($m->jawatankuasa) : null;
                 $latestUsrah = $m->usrah_dibawa ? last($m->usrah_dibawa) : null;
 
-                fputcsv($out, [
+                $put([
                     $i + 1,
                     $m->no_ahli,
                     $m->nama,
@@ -102,7 +113,7 @@ class Index extends Component
                     $m->jantina,
                     $m->kategori,
                     $m->kawasan,
-                    $m->no_tel,
+                    $this->excelText($m->no_tel), // keep leading 0 in Excel
                     SpiMember::levelLabel($m->level),
                     $m->naqib,
                     $latestJk['jawatan'] ?? '',

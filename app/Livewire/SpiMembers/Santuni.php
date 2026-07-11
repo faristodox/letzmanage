@@ -55,6 +55,15 @@ class Santuni extends Component
             ->orderBy('nama');
     }
 
+    /**
+     * Wrap a value as an Excel text formula so Excel/Sheets keep it as text
+     * (e.g. phone numbers keep their leading 0 instead of being read as numbers).
+     */
+    private function excelText(?string $value): string
+    {
+        return ($value === null || $value === '') ? '' : '="'.$value.'"';
+    }
+
     public function export(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $members = $this->filteredQuery()->get();
@@ -64,13 +73,15 @@ class Santuni extends Component
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
 
-            fputcsv($out, [
+            $put = fn (array $fields) => fputcsv($out, $fields, ',', '"', '');
+
+            $put([
                 'Bil', 'Nama', 'No. KP', 'Umur', 'Peringkat', 'Jantina',
                 'Kategori', 'No. Tel', 'Tarikh Semak', 'Tarikh Lulus',
             ]);
 
             foreach ($members as $i => $m) {
-                fputcsv($out, [
+                $put([
                     $i + 1,
                     $m->nama,
                     $m->maskedNoKp(),
@@ -78,7 +89,7 @@ class Santuni extends Component
                     $m->peringkat,
                     $m->jantina,
                     $m->kategori,
-                    $m->no_tel,
+                    $this->excelText($m->no_tel), // keep leading 0 in Excel
                     $m->tarikh_semak,
                     $m->tarikh_lulus,
                 ]);
