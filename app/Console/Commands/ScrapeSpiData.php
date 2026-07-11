@@ -657,11 +657,20 @@ class ScrapeSpiData extends Command
             ];
         });
 
+        // The santuni report has no phone column — cross-reference the member
+        // list (same organization) by IC to fill it in.
+        $phoneByKp = SpiMember::query()
+            ->whereNotNull('no_kp')
+            ->get(['no_kp', 'no_tel'])
+            ->mapWithKeys(fn ($m) => [preg_replace('/\D+/', '', (string) $m->no_kp) => $m->no_tel])
+            ->all();
+
         // Replace the org's santuni list so it mirrors SPI exactly.
-        DB::transaction(function () use ($rows) {
+        DB::transaction(function () use ($rows, $phoneByKp) {
             SpiSantuniMember::query()->delete(); // scoped to current org
 
             foreach ($rows as $row) {
+                $row['no_tel'] = $phoneByKp[$row['no_kp']] ?? null;
                 $row['synced_at'] = now();
                 SpiSantuniMember::create($row);
             }

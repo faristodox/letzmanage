@@ -62,7 +62,7 @@
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Peringkat</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Jantina</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kategori</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kawasan</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Tel</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tarikh Lulus</th>
                     </tr>
                 </thead>
@@ -84,7 +84,7 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->kategori ?: '—' }}</td>
-                            <td class="px-4 py-3 text-sm text-slate-600">{{ $member->kawasan ?: '—' }}</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-600">{{ $member->no_tel ?: '—' }}</td>
                             <td class="px-4 py-3 text-sm text-slate-600">{{ $member->tarikh_lulus ?: '—' }}</td>
                         </tr>
                     @empty

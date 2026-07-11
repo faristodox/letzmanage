@@ -20,6 +20,7 @@ class SpiSantuniMember extends Model
         'kategori',
         'negeri',
         'kawasan',
+        'no_tel',
         'tarikh_semak',
         'tarikh_lulus',
         'synced_at',
