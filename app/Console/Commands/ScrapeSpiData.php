@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Organization;
 use App\Models\SpiMember;
+use App\Models\SpiSantuniMember;
 use App\Support\CurrentOrganization;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Cookie\CookieJar;
 use Symfony\Component\DomCrawler\Crawler;
@@ -20,6 +22,9 @@ class ScrapeSpiData extends Command
     protected string $baseUrl = 'https://www.ikram-spi.org/sys/';
 
     protected array $levels = ['00', '01', '02', '03', '04', '05'];
+
+    /** SPI kawasan (district) code — 36 = IKRAM Setiawangsa. */
+    protected string $district = '36';
 
     protected bool $sslVerify = true;
 
@@ -84,7 +89,7 @@ class ScrapeSpiData extends Command
                 'mshiptype'      => '',
                 'mstatus'        => '',
                 'sex'            => '',
-                'memberdistrict' => '36',
+                'memberdistrict' => $this->district,
                 'subGO'          => 'PAPAR',
             ]);
 
@@ -97,6 +102,12 @@ class ScrapeSpiData extends Command
 
             $this->scrapeMembers($response->body(), $level);
         }
+
+        // Step 2b: scrape "ahli baru untuk disantuni" (new members awaiting assignment)
+        $this->newLine();
+        $this->line('══════════════════════════════════════');
+        $this->info('Fetching ahli baru untuk disantuni…');
+        $this->scrapeSantuni();
 
         // Step 3: scrape naqib assignments per level
         $this->newLine();
@@ -551,5 +562,111 @@ class ScrapeSpiData extends Command
         return $row->filter('td, th')->each(
             fn (Crawler $cell) => trim(preg_replace('/[\s\xc2\xa0]+/', ' ', $cell->text()))
         );
+    }
+
+    // ── Ahli baru untuk disantuni ────────────────────────────────────────────
+
+    /**
+     * Scrape the "senarai permohonan untuk kawasan santuni" list — newly
+     * approved members awaiting assignment. This is a live queue in SPI (members
+     * drop off once processed), so we REPLACE the org's list to mirror it exactly.
+     */
+    private function scrapeSantuni(): void
+    {
+        $url = $this->baseUrl.'admin_register_districtapproach.asp?'.http_build_query([
+            'memberdistrict' => $this->district,
+            'subGO'          => 'PAPAR',
+        ]);
+
+        $response = $this->get($url);
+
+        if (! $response->successful()) {
+            $this->warn('Could not fetch santuni listing: HTTP '.$response->status());
+
+            return;
+        }
+
+        $crawler = new Crawler($response->body());
+        $rows = [];
+        $idx = null;
+
+        // Walk every row in the document; lock onto the header row (contains
+        // NAMA + KP + PRKT), then parse the data rows that follow it. Row-based
+        // (not table-based) to survive SPI's deeply nested table layout.
+        $crawler->filter('tr')->each(function (Crawler $row) use (&$rows, &$idx) {
+            $cells = $this->cells($row);
+            if (empty($cells)) {
+                return;
+            }
+
+            $upper = array_map('strtoupper', $cells);
+
+            // Header row: a compact row whose cells exactly name the santuni
+            // columns. Exact matches + a cell-count cap avoid locking onto the
+            // giant navigation/menu row (where "KP" matches "Laporan KPI" etc.).
+            if ($idx === null) {
+                if (count($cells) <= 20
+                    && in_array('BIL', $upper, true)
+                    && in_array('NAMA', $upper, true)
+                    && in_array('NO. KP', $upper, true)) {
+                    $idx = [
+                        'nama'         => $this->findColIdx($upper, 'NAMA'),
+                        'no_kp'        => $this->findColIdx($upper, 'NO. KP'),
+                        'keahlian'     => $this->findColIdx($upper, 'KEAHLIAN'),
+                        'umur'         => $this->findColIdx($upper, 'UMUR'),
+                        'peringkat'    => $this->findColIdx($upper, 'PRKT'),
+                        'jantina'      => $this->findColIdx($upper, 'JANTINA'),
+                        'kategori'     => $this->findColIdx($upper, 'KTGR'),
+                        'negeri'       => $this->findColIdx($upper, 'NEGERI'),
+                        'kawasan'      => $this->findColIdx($upper, 'KAWASAN'),
+                        'tarikh_semak' => $this->findColIdx($upper, 'TKHSEMAK'),
+                        'tarikh_lulus' => $this->findColIdx($upper, 'TKHLULUS'),
+                    ];
+                }
+
+                return;
+            }
+
+            // Data row: numeric BIL in the first cell.
+            if (! is_numeric($cells[0])) {
+                return;
+            }
+
+            $get = fn (int|false $i) => ($i !== false && isset($cells[$i])) ? trim($cells[$i]) : null;
+
+            $nama = $get($idx['nama']);
+            $noKp = preg_replace('/\D+/', '', (string) $get($idx['no_kp']));
+
+            // Skip anything that isn't a real member row (footer/summary/etc.).
+            if (! $nama || strlen($noKp) < 6) {
+                return;
+            }
+
+            $rows[$noKp] = [
+                'nama'         => $nama,
+                'no_kp'        => $noKp,
+                'keahlian'     => $get($idx['keahlian']),
+                'umur'         => (int) $get($idx['umur']),
+                'peringkat'    => $get($idx['peringkat']),
+                'jantina'      => $get($idx['jantina']),
+                'kategori'     => $get($idx['kategori']),
+                'negeri'       => $get($idx['negeri']),
+                'kawasan'      => $get($idx['kawasan']),
+                'tarikh_semak' => $get($idx['tarikh_semak']),
+                'tarikh_lulus' => $get($idx['tarikh_lulus']),
+            ];
+        });
+
+        // Replace the org's santuni list so it mirrors SPI exactly.
+        DB::transaction(function () use ($rows) {
+            SpiSantuniMember::query()->delete(); // scoped to current org
+
+            foreach ($rows as $row) {
+                $row['synced_at'] = now();
+                SpiSantuniMember::create($row);
+            }
+        });
+
+        $this->line('  Saved '.count($rows).' ahli baru untuk disantuni.');
     }
 }
