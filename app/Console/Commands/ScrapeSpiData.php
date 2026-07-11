@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Organization;
 use App\Models\SpiMember;
+use App\Support\CurrentOrganization;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Cookie\CookieJar;
@@ -10,7 +12,9 @@ use Symfony\Component\DomCrawler\Crawler;
 
 class ScrapeSpiData extends Command
 {
-    protected $signature = 'spi:scrape {--skip-profiles : Skip member profile scraping (faster, for browser sync)}';
+    protected $signature = 'spi:scrape
+        {--skip-profiles : Skip member profile scraping (faster, for browser sync)}
+        {--organization= : Organization ID or slug to scrape into (defaults to the SPI organization)}';
     protected $description = 'Log into ikram-spi.org and pull member + naqib data (levels 03–05)';
 
     protected string $baseUrl = 'https://www.ikram-spi.org/sys/';
@@ -23,6 +27,18 @@ class ScrapeSpiData extends Command
 
     public function handle(): int
     {
+        $organization = $this->resolveOrganization();
+
+        if (! $organization) {
+            $this->error('No organization found to scrape into. Pass --organization=<id|slug>.');
+
+            return 1;
+        }
+
+        // Scope every SpiMember read/write to this organization (tenant).
+        app(CurrentOrganization::class)->set($organization);
+        $this->info("Scraping into organization: {$organization->name} (#{$organization->id})");
+
         $username = config('services.spi.username');
         $password = config('services.spi.password');
 
@@ -105,6 +121,29 @@ class ScrapeSpiData extends Command
         $this->info('Done.');
 
         return 0;
+    }
+
+    /**
+     * Resolve which organization to scrape into. Accepts --organization as an
+     * ID or slug; otherwise defaults to the IKRAM SPI org, then the first org.
+     */
+    private function resolveOrganization(): ?Organization
+    {
+        $option = $this->option('organization');
+
+        if ($option) {
+            return is_numeric($option)
+                ? Organization::find((int) $option)
+                : Organization::where('slug', $option)->first();
+        }
+
+        // Called from within a request (e.g. the Sync button)? Use that org.
+        if ($current = app(CurrentOrganization::class)->get()) {
+            return $current;
+        }
+
+        return Organization::where('slug', 'ikram-setiawangsa')->first()
+            ?? Organization::orderBy('id')->first();
     }
 
     // ── Auth ─────────────────────────────────────────────────────────────────

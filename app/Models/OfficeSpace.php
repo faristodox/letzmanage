@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OfficeSpaceStatus;
 use App\Enums\RoleName;
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,10 +12,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['branch_id', 'parent_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status', 'maintenance_note', 'maintenance_until'])]
+#[Fillable(['organization_id', 'branch_id', 'parent_id', 'name', 'image_path', 'type_id', 'capacity', 'facilities', 'status', 'maintenance_note', 'maintenance_until'])]
 class OfficeSpace extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected function casts(): array
     {

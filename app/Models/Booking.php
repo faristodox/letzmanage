@@ -5,16 +5,17 @@ namespace App\Models;
 use App\Enums\BookingStatus;
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['branch_id', 'user_id', 'guest_name', 'guest_email', 'guest_phone', 'space_id', 'title', 'start_time', 'end_time', 'status', 'approved_by', 'notes'])]
+#[Fillable(['organization_id', 'branch_id', 'user_id', 'guest_name', 'guest_email', 'guest_phone', 'space_id', 'title', 'start_time', 'end_time', 'status', 'approved_by', 'notes'])]
 class Booking extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected function casts(): array
     {

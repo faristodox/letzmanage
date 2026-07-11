@@ -2,28 +2,32 @@
 
 namespace App\Models;
 
-use App\Enums\BranchStatus;
-use App\Models\Concerns\BelongsToOrganization;
+use App\Enums\OrganizationStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['organization_id', 'name', 'location', 'status'])]
-class Branch extends Model
+#[Fillable(['name', 'slug', 'status'])]
+class Organization extends Model
 {
-    use BelongsToOrganization, HasFactory;
+    use HasFactory;
 
     protected function casts(): array
     {
         return [
-            'status' => BranchStatus::class,
+            'status' => OrganizationStatus::class,
         ];
     }
 
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class);
     }
 
     public function officeSpaces(): HasMany
@@ -34,10 +38,5 @@ class Branch extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
-    }
-
-    public function systemSettings(): HasMany
-    {
-        return $this->hasMany(SystemSetting::class);
     }
 }
