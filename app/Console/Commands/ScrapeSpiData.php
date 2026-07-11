@@ -19,7 +19,7 @@ class ScrapeSpiData extends Command
 
     protected string $baseUrl = 'https://www.ikram-spi.org/sys/';
 
-    protected array $levels = ['03', '04', '05'];
+    protected array $levels = ['01', '02', '03', '04', '05'];
 
     protected bool $sslVerify = true;
 

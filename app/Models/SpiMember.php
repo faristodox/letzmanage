@@ -40,6 +40,8 @@ class SpiMember extends Model
     public static function levelLabel(string $level): string
     {
         return match ($level) {
+            '01' => 'Modul 01',
+            '02' => 'Modul 02',
             '03' => 'Modul 03 (AA)',
             '04' => 'Modul 04 (AA)',
             '05' => 'Modul 05 (AT)',
