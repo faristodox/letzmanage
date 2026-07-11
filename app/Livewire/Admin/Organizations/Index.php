@@ -97,6 +97,13 @@ class Index extends Component
         $organization->save();
     }
 
+    public function toggleSpi(int $id): void
+    {
+        $organization = Organization::findOrFail($id);
+        $organization->spi_enabled = ! $organization->spi_enabled;
+        $organization->save();
+    }
+
     public function render()
     {
         $organizations = Organization::query()

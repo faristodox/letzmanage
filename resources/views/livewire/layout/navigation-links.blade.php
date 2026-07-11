@@ -90,7 +90,7 @@
             </li>
         @endcan
 
-        @can('view spi data')
+        @if (app(\App\Support\CurrentOrganization::class)->get()?->hasSpiEnabled() && auth()->user()->can('view spi data'))
         <li>
             <x-nav-link :href="route('spi-members.index')" :active="request()->routeIs('spi-members.index')" wire:navigate
                 x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
@@ -101,7 +101,7 @@
                 <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Data Ahli (SPI)') }}</span>
             </x-nav-link>
         </li>
-        @endcan
+        @endif
 
         @can('viewAny', App\Models\SystemSetting::class)
             <li>

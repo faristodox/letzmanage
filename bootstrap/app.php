@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureSpiEnabled;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\SetCurrentOrganization;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'super-admin' => EnsureSuperAdmin::class,
+            'spi-enabled' => EnsureSpiEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

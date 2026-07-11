@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'slug', 'status'])]
+#[Fillable(['name', 'slug', 'status', 'spi_enabled'])]
 class Organization extends Model
 {
     use HasFactory;
@@ -17,7 +17,13 @@ class Organization extends Model
     {
         return [
             'status' => OrganizationStatus::class,
+            'spi_enabled' => 'boolean',
         ];
+    }
+
+    public function hasSpiEnabled(): bool
+    {
+        return $this->spi_enabled === true;
     }
 
     public function users(): HasMany

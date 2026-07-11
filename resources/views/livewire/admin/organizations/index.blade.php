@@ -53,6 +53,7 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Users</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Branches</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Bookings</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">SPI Module</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
                     </tr>
@@ -70,6 +71,18 @@
                             <td class="px-6 py-4 text-sm text-slate-600">{{ $organization->branches_count }}</td>
                             <td class="px-6 py-4 text-sm text-slate-600">{{ $organization->bookings_count }}</td>
                             <td class="px-6 py-4 text-sm">
+                                <button
+                                    type="button"
+                                    wire:click="toggleSpi({{ $organization->id }})"
+                                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors {{ $organization->spi_enabled ? 'bg-indigo-600' : 'bg-slate-300' }}"
+                                    role="switch"
+                                    aria-checked="{{ $organization->spi_enabled ? 'true' : 'false' }}"
+                                    title="{{ $organization->spi_enabled ? 'Disable SPI module' : 'Enable SPI module' }}"
+                                >
+                                    <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform {{ $organization->spi_enabled ? 'translate-x-5' : 'translate-x-0.5' }}"></span>
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 text-sm">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $organization->status === App\Enums\OrganizationStatus::Active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-rose-50 text-rose-700 ring-rose-600/20' }}">
                                     {{ ucfirst($organization->status->value) }}
                                 </span>
@@ -85,7 +98,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No organizations found.') }}</td>
+                            <td colspan="8" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No organizations found.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
