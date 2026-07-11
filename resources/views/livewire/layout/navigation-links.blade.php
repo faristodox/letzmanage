@@ -11,6 +11,20 @@
             </x-nav-link>
         </li>
 
+        @if (auth()->user()?->isSuperAdmin())
+            {{-- Platform (super-admin) navigation --}}
+            <li>
+                <x-nav-link :href="route('admin.organizations.index')" :active="request()->routeIs('admin.organizations.index')" wire:navigate
+                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
+                    :title="'Organizations'">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('admin.organizations.index') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v16.5h-15V3.75Zm4.5 4.5h.008v.008H9V8.25Zm0 3h.008v.008H9v-.008Zm0 3h.008v.008H9v-.008Zm3-6h.008v.008H12V8.25Zm0 3h.008v.008H12v-.008Zm0 3h.008v.008H12v-.008Zm3-6h.008v.008H15V8.25Zm0 3h.008v.008H15v-.008Zm0 3h.008v.008H15v-.008Z" />
+                    </svg>
+                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Organizations') }}</span>
+                </x-nav-link>
+            </li>
+        @else
+
         @can('viewAny', App\Models\Branch::class)
             <li>
                 <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.index')" wire:navigate
@@ -115,5 +129,7 @@
                 </x-nav-link>
             </li>
         @endcan
+
+        @endif
     </ul>
 </nav>

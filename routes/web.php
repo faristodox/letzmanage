@@ -45,6 +45,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('spi-members', 'spi-members.index')->name('spi-members.index')->can('view spi data');
 });
 
+// Platform (super-admin) area — manage all organizations across the SaaS.
+Route::middleware(['auth', 'super-admin'])->prefix('admin')->group(function () {
+    Route::view('organizations', 'admin.organizations.index')->name('admin.organizations.index');
+});
+
 Route::post('telegram/webhook', App\Http\Controllers\TelegramWebhookController::class);
 
 require __DIR__.'/auth.php';
