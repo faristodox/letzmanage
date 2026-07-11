@@ -7,7 +7,7 @@
             Dashboard
         </a>
     @else
-        @if (Route::has('register'))
+        @if (Route::has('register') && app(\App\Services\PlatformSettingService::class)->isPublicSignupEnabled())
             <a
                 href="{{ route('register') }}"
                 class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-transparent transition hover:text-indigo-600 focus:outline-none focus-visible:ring-indigo-500"

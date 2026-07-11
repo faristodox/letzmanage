@@ -14,6 +14,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
+    @php $signupEnabled = app(\App\Services\PlatformSettingService::class)->isPublicSignupEnabled(); @endphp
     <body class="font-sans antialiased text-slate-900 bg-white">
 
         <!-- Header -->
@@ -78,10 +79,14 @@
                                     </a>
                                 @endauth
 
-                                <a href="{{ url('/book') }}"
-                                   class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-                                    Request a booking
-                                </a>
+                                @guest
+                                    @if ($signupEnabled)
+                                        <a href="{{ route('register') }}"
+                                           class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                                            Get started free
+                                        </a>
+                                    @endif
+                                @endguest
                             </div>
 
                             <dl class="mt-14 grid grid-cols-3 gap-8 max-w-md">
@@ -340,10 +345,12 @@
                                class="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-lg transition hover:-translate-y-0.5">
                                 Sign in to your account
                             </a>
-                            <a href="{{ url('/book') }}"
-                               class="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-                                Request a booking
-                            </a>
+                            @if ($signupEnabled)
+                                <a href="{{ route('register') }}"
+                                   class="inline-flex items-center gap-2 rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                                    Get started free
+                                </a>
+                            @endif
                         @endauth
                     </div>
                 </div>
