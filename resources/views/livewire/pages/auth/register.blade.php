@@ -1,34 +1,50 @@
 <?php
 
 use App\Models\User;
+use App\Services\OrganizationProvisioner;
+use App\Services\PlatformSettingService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.guest')] class extends Component
 {
+    public string $organization_name = '';
     public string $name = '';
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
 
-    /**
-     * Handle an incoming registration request.
-     */
-    public function register(): void
+    public function mount(PlatformSettingService $platformSettings): void
     {
+        // Public self-serve signup can be disabled by the platform owner.
+        abort_unless($platformSettings->isPublicSignupEnabled(), 403, 'Public signup is currently disabled.');
+    }
+
+    /**
+     * Handle an incoming registration request: create a new organization
+     * (tenant) with ready-to-use defaults and its first admin (this user).
+     */
+    public function register(PlatformSettingService $platformSettings, OrganizationProvisioner $provisioner): void
+    {
+        abort_unless($platformSettings->isPublicSignupEnabled(), 403);
+
         $validated = $this->validate([
+            'organization_name' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        $user = $provisioner->provision($validated['organization_name'], [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+        ]);
 
-        event(new Registered($user = User::create($validated)));
+        event(new Registered($user));
 
         Auth::login($user);
 
@@ -37,14 +53,21 @@ new #[Layout('layouts.guest')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Create your account</h1>
-    <p class="mt-2 text-sm text-slate-600">Get started by filling in the details below.</p>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">Create your organization</h1>
+    <p class="mt-2 text-sm text-slate-600">Set up your workspace and admin account in one step.</p>
 
     <form wire:submit="register" class="mt-8 space-y-5">
+        <!-- Organization Name -->
+        <div>
+            <x-input-label for="organization_name" :value="__('Organization name')" />
+            <x-text-input wire:model="organization_name" id="organization_name" class="block mt-1.5 w-full rounded-lg py-2.5" type="text" name="organization_name" required autofocus />
+            <x-input-error :messages="$errors->get('organization_name')" class="mt-2" />
+        </div>
+
         <!-- Name -->
         <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input wire:model="name" id="name" class="block mt-1.5 w-full rounded-lg py-2.5" type="text" name="name" required autofocus autocomplete="name" />
+            <x-input-label for="name" :value="__('Your name')" />
+            <x-text-input wire:model="name" id="name" class="block mt-1.5 w-full rounded-lg py-2.5" type="text" name="name" required autocomplete="name" />
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
 
