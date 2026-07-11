@@ -86,4 +86,19 @@ class OrganizationsAdminTest extends TestCase
 
         $this->assertSame(OrganizationStatus::Suspended, $org->fresh()->status);
     }
+
+    public function test_super_admin_can_set_the_spi_kawasan_for_an_organization(): void
+    {
+        $org = Organization::factory()->create(['spi_enabled' => true]);
+
+        $component = Livewire::actingAs($this->superAdmin())->test(Index::class);
+
+        // Titiwangsa = 85
+        $component->call('setDistrict', $org->id, '85');
+        $this->assertSame('85', $org->fresh()->spi_district_code);
+
+        // An unknown code is rejected (cleared).
+        $component->call('setDistrict', $org->id, '999');
+        $this->assertNull($org->fresh()->spi_district_code);
+    }
 }

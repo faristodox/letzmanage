@@ -23,8 +23,8 @@ class ScrapeSpiData extends Command
 
     protected array $levels = ['00', '01', '02', '03', '04', '05'];
 
-    /** SPI kawasan (district) code — 36 = IKRAM Setiawangsa. */
-    protected string $district = '36';
+    /** SPI kawasan (memberdistrict) code for the organization being scraped. */
+    protected string $district = '';
 
     protected bool $sslVerify = true;
 
@@ -32,23 +32,19 @@ class ScrapeSpiData extends Command
 
     public function handle(): int
     {
-        $organization = $this->resolveOrganization();
-
-        if (! $organization) {
-            $this->error('No organization found to scrape into. Pass --organization=<id|slug>.');
-
-            return 1;
-        }
-
-        // Scope every SpiMember read/write to this organization (tenant).
-        app(CurrentOrganization::class)->set($organization);
-        $this->info("Scraping into organization: {$organization->name} (#{$organization->id})");
-
         $username = config('services.spi.username');
         $password = config('services.spi.password');
 
         if (! $username || ! $password) {
             $this->error('SPI_USERNAME / SPI_PASSWORD not set in .env');
+
+            return 1;
+        }
+
+        $organizations = $this->targetOrganizations();
+
+        if ($organizations->isEmpty()) {
+            $this->error('No SPI-enabled organization with a kawasan code found. Pass --organization=<id|slug> or enable SPI + set a kawasan on an organization.');
 
             return 1;
         }
@@ -60,7 +56,36 @@ class ScrapeSpiData extends Command
             return 1;
         }
 
-        // Step 2: scrape member data per level
+        foreach ($organizations as $organization) {
+            if (! $organization->spi_district_code) {
+                $this->warn("Skipping {$organization->name}: no kawasan (memberdistrict) code set.");
+
+                continue;
+            }
+
+            // Scope every SPI read/write to this organization (tenant).
+            app(CurrentOrganization::class)->set($organization);
+            $this->district = $organization->spi_district_code;
+
+            $this->newLine();
+            $this->line('══════════════════════════════════════');
+            $this->info("Organization: {$organization->name} (#{$organization->id}) — kawasan {$this->district}");
+
+            $this->scrapeOrganization();
+        }
+
+        app(CurrentOrganization::class)->clear();
+
+        $this->newLine();
+        $this->info('Done.');
+
+        return 0;
+    }
+
+    /** Scrape all SPI data for the organization currently in context. */
+    private function scrapeOrganization(): void
+    {
+        // Step 1: member data per level
         foreach ($this->levels as $level) {
             $this->newLine();
             $this->line('──────────────────────────────────────');
@@ -103,13 +128,13 @@ class ScrapeSpiData extends Command
             $this->scrapeMembers($response->body(), $level);
         }
 
-        // Step 2b: scrape "ahli baru untuk disantuni" (new members awaiting assignment)
+        // Step 2: "ahli baru untuk disantuni" (new members awaiting assignment)
         $this->newLine();
         $this->line('══════════════════════════════════════');
         $this->info('Fetching ahli baru untuk disantuni…');
         $this->scrapeSantuni();
 
-        // Step 3: scrape naqib assignments per level
+        // Step 3: naqib assignments per level
         $this->newLine();
         $this->line('══════════════════════════════════════');
         $this->info('Fetching naqib assignments…');
@@ -120,41 +145,45 @@ class ScrapeSpiData extends Command
             $this->scrapeNaqibForLevel($level);
         }
 
-        // Step 4: scrape each member's profile page (skipped when --skip-profiles)
+        // Step 4: member profile pages (skipped when --skip-profiles)
         if (! $this->option('skip-profiles')) {
             $this->newLine();
             $this->line('══════════════════════════════════════');
             $this->info('Fetching member profiles…');
             $this->scrapeProfiles();
         }
-
-        $this->newLine();
-        $this->info('Done.');
-
-        return 0;
     }
 
     /**
-     * Resolve which organization to scrape into. Accepts --organization as an
-     * ID or slug; otherwise defaults to the IKRAM SPI org, then the first org.
+     * Which organizations to scrape:
+     * - --organization=<id|slug> → just that one
+     * - called from a request (Sync button) → the current org
+     * - otherwise → every SPI-enabled org that has a kawasan code
+     *
+     * @return \Illuminate\Support\Collection<int, Organization>
      */
-    private function resolveOrganization(): ?Organization
+    private function targetOrganizations(): \Illuminate\Support\Collection
     {
         $option = $this->option('organization');
 
         if ($option) {
-            return is_numeric($option)
+            $org = is_numeric($option)
                 ? Organization::find((int) $option)
                 : Organization::where('slug', $option)->first();
+
+            return collect($org ? [$org] : []);
         }
 
         // Called from within a request (e.g. the Sync button)? Use that org.
         if ($current = app(CurrentOrganization::class)->get()) {
-            return $current;
+            return collect([$current]);
         }
 
-        return Organization::where('slug', 'ikram-setiawangsa')->first()
-            ?? Organization::orderBy('id')->first();
+        return Organization::query()
+            ->where('spi_enabled', true)
+            ->whereNotNull('spi_district_code')
+            ->orderBy('id')
+            ->get();
     }
 
     // ── Auth ─────────────────────────────────────────────────────────────────

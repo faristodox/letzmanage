@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Organizations;
 
 use App\Enums\OrganizationStatus;
+use App\Enums\SpiKawasan;
 use App\Models\Organization;
 use App\Models\User;
 use App\Services\OrganizationProvisioner;
@@ -104,6 +105,18 @@ class Index extends Component
         $organization->save();
     }
 
+    public function setDistrict(int $id, ?string $code): void
+    {
+        $organization = Organization::findOrFail($id);
+
+        // Only accept a known kawasan code (or blank to clear).
+        $organization->spi_district_code = ($code !== null && $code !== '' && SpiKawasan::tryFrom($code))
+            ? $code
+            : null;
+
+        $organization->save();
+    }
+
     public function render()
     {
         $organizations = Organization::query()
@@ -117,6 +130,7 @@ class Index extends Component
             'organizations' => $organizations,
             'totalOrganizations' => Organization::count(),
             'totalUsers' => User::query()->withoutGlobalScopes()->count(),
+            'kawasanOptions' => SpiKawasan::cases(),
         ]);
     }
 }

@@ -71,16 +71,36 @@
                             <td class="px-6 py-4 text-sm text-slate-600">{{ $organization->branches_count }}</td>
                             <td class="px-6 py-4 text-sm text-slate-600">{{ $organization->bookings_count }}</td>
                             <td class="px-6 py-4 text-sm">
-                                <button
-                                    type="button"
-                                    wire:click="toggleSpi({{ $organization->id }})"
-                                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors {{ $organization->spi_enabled ? 'bg-indigo-600' : 'bg-slate-300' }}"
-                                    role="switch"
-                                    aria-checked="{{ $organization->spi_enabled ? 'true' : 'false' }}"
-                                    title="{{ $organization->spi_enabled ? 'Disable SPI module' : 'Enable SPI module' }}"
-                                >
-                                    <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform {{ $organization->spi_enabled ? 'translate-x-5' : 'translate-x-0.5' }}"></span>
-                                </button>
+                                <div class="flex flex-col gap-2">
+                                    <button
+                                        type="button"
+                                        wire:click="toggleSpi({{ $organization->id }})"
+                                        class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors {{ $organization->spi_enabled ? 'bg-indigo-600' : 'bg-slate-300' }}"
+                                        role="switch"
+                                        aria-checked="{{ $organization->spi_enabled ? 'true' : 'false' }}"
+                                        title="{{ $organization->spi_enabled ? 'Disable SPI module' : 'Enable SPI module' }}"
+                                    >
+                                        <span class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform {{ $organization->spi_enabled ? 'translate-x-5' : 'translate-x-0.5' }}"></span>
+                                    </button>
+
+                                    @if ($organization->spi_enabled)
+                                        <select
+                                            wire:change="setDistrict({{ $organization->id }}, $event.target.value)"
+                                            class="w-44 rounded-lg border-slate-200 py-1 text-xs text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        >
+                                            <option value="">— pilih kawasan —</option>
+                                            @foreach ($kawasanOptions as $kawasan)
+                                                <option value="{{ $kawasan->value }}" @selected($organization->spi_district_code === $kawasan->value)>
+                                                    {{ $kawasan->label() }} ({{ $kawasan->value }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        @unless ($organization->spi_district_code)
+                                            <span class="text-xs font-medium text-amber-600">⚠ Pilih kawasan untuk sync</span>
+                                        @endunless
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-6 py-4 text-sm">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $organization->status === App\Enums\OrganizationStatus::Active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-rose-50 text-rose-700 ring-rose-600/20' }}">

@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Enums\OrganizationStatus;
+use App\Enums\SpiKawasan;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'slug', 'status', 'spi_enabled'])]
+#[Fillable(['name', 'slug', 'status', 'spi_enabled', 'spi_district_code'])]
 class Organization extends Model
 {
     use HasFactory;
@@ -24,6 +25,11 @@ class Organization extends Model
     public function hasSpiEnabled(): bool
     {
         return $this->spi_enabled === true;
+    }
+
+    public function spiKawasanLabel(): ?string
+    {
+        return SpiKawasan::labelFor($this->spi_district_code);
     }
 
     public function users(): HasMany
