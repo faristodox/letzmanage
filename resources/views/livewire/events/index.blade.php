@@ -55,7 +55,11 @@
                             @if ($registrationForm)
                                 <a href="{{ route('event-forms.builder', $registrationForm) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</a>
                                 <a href="{{ route('event-forms.builder', $registrationForm) }}#form-settings" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Registration') }}</a>
-                                <a href="{{ route('event-forms.builder', $feedbackForm ?? $registrationForm).($feedbackForm ? '' : '#feedback-survey') }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</a>
+                                @if ($feedbackForm)
+                                    <a href="{{ route('event-forms.builder', $feedbackForm) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</a>
+                                @else
+                                    <button type="button" wire:click="createFeedbackForm({{ $event->id }})" class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</button>
+                                @endif
                             @endif
                             @can('viewFinances', $event)
                                 <a href="{{ route('events.finances', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Financial') }}</a>

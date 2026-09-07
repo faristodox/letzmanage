@@ -65,6 +65,21 @@ class Index extends Component
         $this->redirect(route('event-forms.builder', $registrationForm), navigate: true);
     }
 
+    public function createFeedbackForm(int $eventId): void
+    {
+        $event = Event::findOrFail($eventId);
+        $this->authorize('create', EventForm::class);
+
+        $feedbackForm = $event->feedbackForm ?? EventForm::create([
+            'event_id' => $event->id,
+            'type' => EventFormType::Feedback,
+            'status' => EventFormStatus::Draft,
+            'created_by' => auth()->id(),
+        ]);
+
+        $this->redirect(route('event-forms.builder', $feedbackForm), navigate: true);
+    }
+
     public function confirmDelete(int $id): void
     {
         $event = Event::findOrFail($id);

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Livewire;
 
 use App\Enums\EventFormStatus;
+use App\Enums\EventFormType;
 use App\Enums\RoleName;
 use App\Livewire\Events\Index;
 use App\Models\Event;
@@ -110,7 +111,6 @@ class EventsIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee(route('event-forms.builder', $registrationForm), false);
         $response->assertSee(route('event-forms.builder', $registrationForm).'#form-settings', false);
-        $response->assertSee(route('event-forms.builder', $registrationForm).'#feedback-survey', false);
         $response->assertSee(route('events.finances', $event), false);
         $response->assertSee(route('events.report', $event), false);
     }
@@ -128,5 +128,43 @@ class EventsIndexTest extends TestCase
             ->get(route('events.index'))
             ->assertOk()
             ->assertSee(route('event-forms.builder', $feedbackForm), false);
+    }
+
+    public function test_feedback_action_creates_the_feedback_form_on_demand_when_none_exists(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $event = Event::factory()->create();
+        EventForm::factory()->for($event)->create();
+
+        $this->assertNull($event->fresh()->feedbackForm);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('createFeedbackForm', $event->id)
+            ->assertRedirect();
+
+        $feedbackForm = $event->fresh()->feedbackForm;
+
+        $this->assertNotNull($feedbackForm);
+        $this->assertSame(EventFormType::Feedback, $feedbackForm->type);
+    }
+
+    public function test_feedback_action_reuses_the_existing_feedback_form_instead_of_duplicating_it(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $event = Event::factory()->create();
+        EventForm::factory()->for($event)->create();
+        $feedbackForm = EventForm::factory()->for($event)->feedback()->create();
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('createFeedbackForm', $event->id)
+            ->assertRedirect(route('event-forms.builder', $feedbackForm));
+
+        $this->assertSame(1, EventForm::where('event_id', $event->id)->where('type', EventFormType::Feedback)->count());
     }
 }
