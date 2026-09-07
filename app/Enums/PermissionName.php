@@ -15,21 +15,31 @@ enum PermissionName: string
     case ApproveBookings = 'approve bookings';
     case CancelAnyBooking = 'cancel any booking';
     case ViewSpiData = 'view spi data';
+    case ManageEventForms = 'manage event forms';
+    case ViewEventResponses = 'view event responses';
+    case CheckInEventParticipants = 'check in event participants';
+    case ManageForms = 'manage forms';
+    case ViewFormResponses = 'view form responses';
 
     public function label(): string
     {
         return match ($this) {
-            self::ManageBranches    => 'Manage Branches',
-            self::ManageUsers       => 'Manage Users',
+            self::ManageBranches => 'Manage Branches',
+            self::ManageUsers => 'Manage Users',
             self::ManageOfficeSpaces => 'Manage Office Spaces',
-            self::ManageSettings    => 'Manage Settings',
-            self::ManageRoles       => 'Manage Roles & Permissions',
-            self::CreateBookings    => 'Create Bookings',
-            self::ViewOwnBookings   => 'View Own Bookings',
-            self::ViewAllBookings   => 'View All Bookings',
-            self::ApproveBookings   => 'Approve Bookings',
-            self::CancelAnyBooking  => 'Cancel Any Booking',
-            self::ViewSpiData       => 'View Data Ahli (SPI)',
+            self::ManageSettings => 'Manage Settings',
+            self::ManageRoles => 'Manage Roles & Permissions',
+            self::CreateBookings => 'Create Bookings',
+            self::ViewOwnBookings => 'View Own Bookings',
+            self::ViewAllBookings => 'View All Bookings',
+            self::ApproveBookings => 'Approve Bookings',
+            self::CancelAnyBooking => 'Cancel Any Booking',
+            self::ViewSpiData => 'View Data Ahli (SPI)',
+            self::ManageEventForms => 'Manage Event Forms',
+            self::ViewEventResponses => 'View Event Responses',
+            self::CheckInEventParticipants => 'Check In Event Participants',
+            self::ManageForms => 'Manage Forms',
+            self::ViewFormResponses => 'View Form Responses',
         };
     }
 
@@ -41,6 +51,8 @@ enum PermissionName: string
             self::CreateBookings, self::ViewOwnBookings, self::ViewAllBookings,
             self::ApproveBookings, self::CancelAnyBooking => 'Bookings',
             self::ViewSpiData => 'SPI Data',
+            self::ManageEventForms, self::ViewEventResponses, self::CheckInEventParticipants => 'Event Forms',
+            self::ManageForms, self::ViewFormResponses => 'Forms',
         };
     }
 }

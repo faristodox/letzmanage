@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->validateCsrfTokens(except: ['telegram/webhook']);
+        $middleware->validateCsrfTokens(except: ['telegram/webhook', 'chip/webhook']);
         $middleware->web(append: [
             SetCurrentOrganization::class,
         ]);

@@ -31,6 +31,11 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::ApproveBookings,
             PermissionName::CancelAnyBooking,
             PermissionName::ViewSpiData,
+            PermissionName::ManageEventForms,
+            PermissionName::ViewEventResponses,
+            PermissionName::CheckInEventParticipants,
+            PermissionName::ManageForms,
+            PermissionName::ViewFormResponses,
         ]);
 
         $staff = Role::findOrCreate(RoleName::Staff->value);

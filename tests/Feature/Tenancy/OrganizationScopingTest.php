@@ -3,6 +3,7 @@
 namespace Tests\Feature\Tenancy;
 
 use App\Models\Branch;
+use App\Models\EventForm;
 use App\Models\Organization;
 use App\Support\CurrentOrganization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -67,5 +68,20 @@ class OrganizationScopingTest extends TestCase
 
         $this->assertSame(2, Branch::count());
         $this->assertSame(5, Branch::query()->acrossOrganizations()->count());
+    }
+
+    public function test_event_forms_are_scoped_to_the_current_organization(): void
+    {
+        $orgA = Organization::factory()->create();
+        $orgB = Organization::factory()->create();
+
+        EventForm::factory()->for($orgA, 'organization')->count(2)->create();
+        EventForm::factory()->for($orgB, 'organization')->count(3)->create();
+
+        $this->context()->set($orgA);
+        $this->assertSame(2, EventForm::count());
+
+        $this->context()->set($orgB);
+        $this->assertSame(3, EventForm::count());
     }
 }
