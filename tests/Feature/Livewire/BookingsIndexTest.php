@@ -11,9 +11,11 @@ use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\OfficeSpace;
 use App\Models\User;
+use App\Notifications\BookingApprovedNotification;
 use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -24,6 +26,12 @@ class BookingsIndexTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Booking create/approve/reject all attempt a Telegram broadcast to
+        // the shared admin chat (BookingService::notifyTelegramPending() is a
+        // raw Http::post(), not a Notification — Notification::fake() alone
+        // doesn't cover it).
+        Http::fake();
 
         $this->seed(RolesAndPermissionsSeeder::class);
     }
@@ -72,7 +80,7 @@ class BookingsIndexTest extends TestCase
         $this->assertSame(BookingStatus::Approved, $booking->status);
         $this->assertSame('Welcome - the front desk will let you in.', $booking->notes);
 
-        $rendered = (new \App\Notifications\BookingApprovedNotification($booking))->toMail($staff)->render();
+        $rendered = (new BookingApprovedNotification($booking))->toMail($staff)->render();
         $this->assertStringContainsString('Welcome - the front desk will let you in.', $rendered);
     }
 
@@ -93,7 +101,7 @@ class BookingsIndexTest extends TestCase
             'status' => BookingStatus::Approved,
         ]);
 
-        $rendered = (new \App\Notifications\BookingApprovedNotification($booking))->toMail($staff)->render();
+        $rendered = (new BookingApprovedNotification($booking))->toMail($staff)->render();
         $this->assertStringContainsString('Parking is available at the back entrance.', $rendered);
     }
 

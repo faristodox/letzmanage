@@ -96,4 +96,24 @@ class SystemSettingService
 
         $this->set(SettingKey::OrganizationLogo, $path);
     }
+
+    public function getTelegramNotificationsEnabled(): bool
+    {
+        return $this->get(SettingKey::TelegramNotificationsEnabled, default: '1') === '1';
+    }
+
+    public function setTelegramNotificationsEnabled(bool $enabled): void
+    {
+        $this->set(SettingKey::TelegramNotificationsEnabled, $enabled ? '1' : '0');
+    }
+
+    public function getEmailNotificationsEnabled(): bool
+    {
+        return $this->get(SettingKey::EmailNotificationsEnabled, default: '1') === '1';
+    }
+
+    public function setEmailNotificationsEnabled(bool $enabled): void
+    {
+        $this->set(SettingKey::EmailNotificationsEnabled, $enabled ? '1' : '0');
+    }
 }

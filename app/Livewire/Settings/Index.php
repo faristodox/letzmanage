@@ -33,6 +33,10 @@ class Index extends Component
 
     public bool $removeLogo = false;
 
+    public bool $telegramNotificationsEnabled = true;
+
+    public bool $emailNotificationsEnabled = true;
+
     public function mount(SystemSettingService $settings): void
     {
         $this->authorize('viewAny', SystemSetting::class);
@@ -41,6 +45,8 @@ class Index extends Component
         $this->globalApprovalNote = $settings->getApprovalEmailNote() ?? '';
         $this->organizationName = $settings->getOrganizationName() ?? '';
         $this->existingLogoPath = $settings->getOrganizationLogoPath();
+        $this->telegramNotificationsEnabled = $settings->getTelegramNotificationsEnabled();
+        $this->emailNotificationsEnabled = $settings->getEmailNotificationsEnabled();
 
         foreach (Branch::orderBy('name')->get() as $branch) {
             $override = SystemSetting::where('branch_id', $branch->id)
@@ -71,6 +77,8 @@ class Index extends Component
         $settings->setApprovalMode(ApprovalMode::from($this->globalMode));
         $settings->setApprovalEmailNote($this->globalApprovalNote ?: null);
         $settings->setOrganizationName($this->organizationName ?: null);
+        $settings->setTelegramNotificationsEnabled($this->telegramNotificationsEnabled);
+        $settings->setEmailNotificationsEnabled($this->emailNotificationsEnabled);
 
         if ($this->organizationLogo) {
             if ($this->existingLogoPath) {

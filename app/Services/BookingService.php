@@ -16,8 +16,10 @@ use App\Notifications\BookingSubmittedNotification;
 use App\Notifications\GuestBookingReceivedNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Collection;
+use Throwable;
 
 class BookingService
 {
@@ -46,11 +48,11 @@ class BookingService
         $booking->load(['user', 'space']);
 
         if ($mode === ApprovalMode::Auto) {
-            Notification::send($booking->user, new BookingApprovedNotification($booking));
-            Notification::send($this->approvers($booking), new BookingAutoApprovedNotification($booking));
+            $this->notifyEmail($booking->user, new BookingApprovedNotification($booking));
+            $this->notifyEmail($this->approvers($booking), new BookingAutoApprovedNotification($booking));
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
         } else {
-            Notification::send($this->approvers($booking), new BookingSubmittedNotification($booking));
+            $this->notifyEmail($this->approvers($booking), new BookingSubmittedNotification($booking));
             $this->notifyTelegramPending($booking);
         }
 
@@ -83,14 +85,16 @@ class BookingService
         $booking->load(['space']);
 
         if ($mode === ApprovalMode::Auto) {
-            Notification::send($this->approvers($booking), new BookingAutoApprovedNotification($booking));
+            $this->notifyEmail($this->approvers($booking), new BookingAutoApprovedNotification($booking));
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
         } else {
-            Notification::send($this->approvers($booking), new BookingSubmittedNotification($booking));
+            $this->notifyEmail($this->approvers($booking), new BookingSubmittedNotification($booking));
             $this->notifyTelegramPending($booking);
         }
 
-        Notification::route('mail', $booking->guest_email)->notify(new GuestBookingReceivedNotification($booking));
+        if ($this->settings->getEmailNotificationsEnabled()) {
+            $this->send(Notification::route('mail', $booking->guest_email), new GuestBookingReceivedNotification($booking));
+        }
 
         return $booking;
     }
@@ -210,17 +214,18 @@ class BookingService
     }
 
     /**
-     * Broadcast a booking event to the shared admin Telegram chat, if configured.
+     * Broadcast a booking event to the shared admin Telegram chat, if configured
+     * and not switched off in Settings.
      */
     private function notifyTelegram(\Illuminate\Notifications\Notification $notification): void
     {
         $chatId = config('services.telegram.chat_id');
 
-        if (! $chatId) {
+        if (! $chatId || ! $this->settings->getTelegramNotificationsEnabled()) {
             return;
         }
 
-        Notification::route('telegram', $chatId)->notify($notification);
+        $this->send(Notification::route('telegram', $chatId), $notification);
     }
 
     /**
@@ -231,7 +236,7 @@ class BookingService
         $chatId = config('services.telegram.chat_id');
         $token = config('services.telegram.token');
 
-        if (! $chatId || ! $token) {
+        if (! $chatId || ! $token || ! $this->settings->getTelegramNotificationsEnabled()) {
             return;
         }
 
@@ -247,17 +252,21 @@ class BookingService
             $text .= "\n📝 {$booking->title}";
         }
 
-        Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
-            'chat_id' => $chatId,
-            'text' => $text,
-            'parse_mode' => 'Markdown',
-            'reply_markup' => json_encode([
-                'inline_keyboard' => [[
-                    ['text' => '✅ Approve', 'callback_data' => "approve_{$booking->id}"],
-                    ['text' => '❌ Reject', 'callback_data' => "reject_{$booking->id}"],
-                ]],
-            ]),
-        ]);
+        try {
+            Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => 'Markdown',
+                'reply_markup' => json_encode([
+                    'inline_keyboard' => [[
+                        ['text' => '✅ Approve', 'callback_data' => "approve_{$booking->id}"],
+                        ['text' => '❌ Reject', 'callback_data' => "reject_{$booking->id}"],
+                    ]],
+                ]),
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('Booking Telegram notification failed: '.$e->getMessage(), ['booking_id' => $booking->id]);
+        }
     }
 
     /**
@@ -265,14 +274,48 @@ class BookingService
      */
     private function notifyRequester(Booking $booking, \Illuminate\Notifications\Notification $notification): void
     {
+        if (! $this->settings->getEmailNotificationsEnabled()) {
+            return;
+        }
+
         if ($booking->user) {
-            Notification::send($booking->user, $notification);
+            $this->send($booking->user, $notification);
 
             return;
         }
 
         if ($booking->guest_email) {
-            Notification::route('mail', $booking->guest_email)->notify($notification);
+            $this->send(Notification::route('mail', $booking->guest_email), $notification);
+        }
+    }
+
+    /**
+     * Notify a user/collection of users by email, unless switched off in Settings.
+     *
+     * @param  User|Collection<int, User>  $notifiable
+     */
+    private function notifyEmail($notifiable, \Illuminate\Notifications\Notification $notification): void
+    {
+        if (! $this->settings->getEmailNotificationsEnabled()) {
+            return;
+        }
+
+        $this->send($notifiable, $notification);
+    }
+
+    /**
+     * Send a notification, swallowing and logging any delivery failure (e.g. a
+     * misconfigured or suspended mail/Telegram provider) so it never turns a
+     * booking action into a 500 for the user performing it.
+     */
+    private function send(mixed $notifiable, \Illuminate\Notifications\Notification $notification): void
+    {
+        try {
+            Notification::send($notifiable, $notification);
+        } catch (Throwable $e) {
+            Log::warning('Booking notification failed: '.$e->getMessage(), [
+                'notification' => get_class($notification),
+            ]);
         }
     }
 

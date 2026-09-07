@@ -8,4 +8,6 @@ enum SettingKey: string
     case ApprovalEmailNote = 'approval_email_note';
     case OrganizationName = 'organization_name';
     case OrganizationLogo = 'organization_logo';
+    case TelegramNotificationsEnabled = 'telegram_notifications_enabled';
+    case EmailNotificationsEnabled = 'email_notifications_enabled';
 }

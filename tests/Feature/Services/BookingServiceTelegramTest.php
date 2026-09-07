@@ -12,12 +12,10 @@ use App\Models\User;
 use App\Notifications\BookingApprovedNotification;
 use App\Notifications\BookingAutoApprovedNotification;
 use App\Notifications\BookingRejectedNotification;
-use App\Notifications\BookingSubmittedNotification;
 use App\Services\BookingService;
 use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -83,6 +81,62 @@ class BookingServiceTelegramTest extends TestCase
         ]);
 
         Http::assertNothingSent();
+    }
+
+    public function test_telegram_broadcast_is_skipped_when_disabled_in_settings(): void
+    {
+        config([
+            'services.telegram.chat_id' => 'test-chat-id',
+            'services.telegram.token' => 'test-token',
+        ]);
+        app(SystemSettingService::class)->setTelegramNotificationsEnabled(false);
+
+        Http::fake();
+        Notification::fake();
+
+        $branch = Branch::factory()->create();
+        $space = OfficeSpace::factory()->create(['branch_id' => $branch->id]);
+        $date = now()->addDay()->format('Y-m-d');
+
+        app(BookingService::class)->createGuestBooking([
+            'branch_id' => $branch->id,
+            'space_id' => $space->id,
+            'start_time' => "{$date} 09:00:00",
+            'end_time' => "{$date} 10:00:00",
+            'guest_name' => 'Jane Visitor',
+            'guest_email' => 'jane@example.com',
+        ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_email_notifications_are_skipped_when_disabled_in_settings(): void
+    {
+        app(SystemSettingService::class)->setEmailNotificationsEnabled(false);
+
+        Http::fake();
+        Notification::fake();
+
+        $branch = Branch::factory()->create();
+        $space = OfficeSpace::factory()->create(['branch_id' => $branch->id]);
+
+        app(SystemSettingService::class)->setApprovalMode(ApprovalMode::Manual, $branch->id);
+
+        $manager = User::factory()->create(['branch_id' => $branch->id]);
+        $manager->assignRole(RoleName::Manager->value);
+
+        $date = now()->addDay()->format('Y-m-d');
+
+        app(BookingService::class)->createGuestBooking([
+            'branch_id' => $branch->id,
+            'space_id' => $space->id,
+            'start_time' => "{$date} 09:00:00",
+            'end_time' => "{$date} 10:00:00",
+            'guest_name' => 'Jane Visitor',
+            'guest_email' => 'jane@example.com',
+        ]);
+
+        Notification::assertNothingSent();
     }
 
     public function test_approve_and_reject_broadcast_to_telegram(): void

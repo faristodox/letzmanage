@@ -1,4 +1,18 @@
 <div>
+    @can('viewAny', App\Models\OrganizationPaymentSetting::class)
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Payment Settings') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __('Connect CHIP and/or bank transfer so event registration forms can charge a fee.') }}</p>
+                </div>
+                <a href="{{ route('settings.payments') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
     <div
         x-data="{ saved: false }"
         x-on:settings-saved.window="saved = true; setTimeout(() => saved = false, 3000)"
@@ -107,6 +121,24 @@
                             <x-input-error :messages="$errors->get('branchApprovalNotes.'.$branch->id)" class="mt-2" />
                         </div>
                     @endforeach
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 class="text-base font-semibold text-slate-900">{{ __('Notifications') }}</h3>
+                <p class="mt-1 text-sm text-slate-500">
+                    {{ __('Turn off a channel to stop booking notifications from going out over it — useful while testing.') }}
+                </p>
+
+                <div class="mt-4 space-y-3">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="emailNotificationsEnabled" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">{{ __('Email Notifications') }}</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="telegramNotificationsEnabled" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">{{ __('Telegram Notifications') }}</span>
+                    </label>
                 </div>
             </div>
 

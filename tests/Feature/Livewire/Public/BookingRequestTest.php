@@ -16,6 +16,7 @@ use App\Notifications\GuestBookingReceivedNotification;
 use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -27,6 +28,11 @@ class BookingRequestTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Guest booking submission attempts a Telegram broadcast via a raw
+        // Http::post() (BookingService::notifyTelegramPending()), which
+        // Notification::fake() alone doesn't cover.
+        Http::fake();
 
         $this->seed(RolesAndPermissionsSeeder::class);
     }

@@ -67,6 +67,26 @@ class SettingsIndexTest extends TestCase
         $this->assertSame('Please check in at the front desk.', $settings->getApprovalEmailNote($otherBranch->id));
     }
 
+    public function test_admin_can_toggle_notification_channels(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $settings = app(SystemSettingService::class);
+        $this->assertTrue($settings->getTelegramNotificationsEnabled());
+        $this->assertTrue($settings->getEmailNotificationsEnabled());
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->set('telegramNotificationsEnabled', false)
+            ->set('emailNotificationsEnabled', false)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertFalse($settings->getTelegramNotificationsEnabled());
+        $this->assertFalse($settings->getEmailNotificationsEnabled());
+    }
+
     public function test_staff_cannot_access_settings_component(): void
     {
         $branch = Branch::factory()->create();
