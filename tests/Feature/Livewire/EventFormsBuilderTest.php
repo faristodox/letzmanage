@@ -5,14 +5,18 @@ namespace Tests\Feature\Livewire;
 use App\Enums\EventFormFieldType;
 use App\Enums\EventFormStatus;
 use App\Enums\RoleName;
+use App\Jobs\SyncEventToGoogleCalendarJob;
 use App\Livewire\EventForms\Builder;
+use App\Models\Event;
 use App\Models\EventForm;
 use App\Models\EventFormField;
 use App\Models\EventFormResponse;
+use App\Models\Organization;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -52,6 +56,83 @@ class EventFormsBuilderTest extends TestCase
         $field = $eventForm->fields()->first();
         $this->assertSame('Full Name', $field->label);
         $this->assertTrue($field->required);
+    }
+
+    public function test_admin_can_save_a_one_day_event_schedule(): void
+    {
+        $eventForm = EventForm::factory()->create();
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('eventStartDate', '2026-11-20')
+            ->set('eventStartTime', '09:00')
+            ->set('eventLocation', 'Dewan Serbaguna, Kuala Lumpur')
+            ->call('saveEventSettings')
+            ->assertHasNoErrors();
+
+        $event = $eventForm->event->fresh();
+        $this->assertSame('2026-11-20', $event->start_date->format('Y-m-d'));
+        $this->assertSame('09:00', $event->start_time);
+        $this->assertNull($event->end_date);
+        $this->assertNull($event->end_time);
+        $this->assertSame('Dewan Serbaguna, Kuala Lumpur', $event->location);
+    }
+
+    public function test_admin_can_save_a_multi_day_event_schedule(): void
+    {
+        $eventForm = EventForm::factory()->create();
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('eventStartDate', '2026-11-20')
+            ->set('eventEndDate', '2026-11-22')
+            ->call('saveEventSettings')
+            ->assertHasNoErrors();
+
+        $event = $eventForm->event->fresh();
+        $this->assertSame('2026-11-22', $event->end_date->format('Y-m-d'));
+    }
+
+    public function test_end_date_before_start_date_fails_validation(): void
+    {
+        $eventForm = EventForm::factory()->create();
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('eventStartDate', '2026-11-20')
+            ->set('eventEndDate', '2026-11-18')
+            ->call('saveEventSettings')
+            ->assertHasErrors(['eventEndDate']);
+    }
+
+    public function test_schedule_fields_are_all_optional(): void
+    {
+        $eventForm = EventForm::factory()->create();
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->call('saveEventSettings')
+            ->assertHasNoErrors();
+    }
+
+    public function test_mount_hydrates_the_existing_schedule(): void
+    {
+        $eventForm = EventForm::factory()->create();
+        $eventForm->event->update([
+            'start_date' => '2026-11-20',
+            'start_time' => '09:00',
+            'end_date' => '2026-11-21',
+            'end_time' => '17:00',
+            'location' => 'Main Hall',
+        ]);
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->assertSet('eventStartDate', '2026-11-20')
+            ->assertSet('eventStartTime', '09:00')
+            ->assertSet('eventEndDate', '2026-11-21')
+            ->assertSet('eventEndTime', '17:00')
+            ->assertSet('eventLocation', 'Main Hall');
     }
 
     public function test_admin_can_add_a_select_field_with_options(): void
@@ -187,5 +268,109 @@ class EventFormsBuilderTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(EventFormStatus::Closed, $eventForm->refresh()->status);
+    }
+
+    /**
+     * Calendar sync dispatch needs a real Event.organization_id (the queued
+     * job's constructor requires a non-null int) — factories don't stamp one
+     * unless a CurrentOrganization is active, so these sync-focused tests
+     * build their own org and wire every model to it explicitly, unlike the
+     * other tests in this file which don't care about organization_id at all.
+     */
+    private function adminForCalendarSyncTests(Organization $organization): User
+    {
+        $admin = User::factory()->create(['organization_id' => $organization->id]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        return $admin;
+    }
+
+    public function test_publishing_the_registration_form_with_a_start_date_queues_a_calendar_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create(['start_date' => '2026-11-20']);
+        $eventForm = EventForm::factory()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('status', EventFormStatus::Published->value)
+            ->call('saveFormSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertPushed(SyncEventToGoogleCalendarJob::class, fn ($job) => $job->eventId === $eventForm->event_id && $job->action === 'upsert');
+    }
+
+    public function test_publishing_the_registration_form_without_a_start_date_does_not_queue_a_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create();
+        $eventForm = EventForm::factory()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('status', EventFormStatus::Published->value)
+            ->call('saveFormSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_unpublishing_a_previously_synced_event_queues_a_delete_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create([
+            'start_date' => '2026-11-20',
+            'google_event_id' => 'gcal-event-1',
+        ]);
+        $eventForm = EventForm::factory()->published()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('status', EventFormStatus::Closed->value)
+            ->call('saveFormSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertPushed(SyncEventToGoogleCalendarJob::class, fn ($job) => $job->eventId === $eventForm->event_id && $job->action === 'delete');
+    }
+
+    public function test_publishing_a_feedback_form_does_not_queue_a_calendar_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create(['start_date' => '2026-11-20']);
+        $eventForm = EventForm::factory()->feedback()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('status', EventFormStatus::Published->value)
+            ->call('saveFormSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_saving_event_settings_while_published_queues_a_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create();
+        $eventForm = EventForm::factory()->published()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('eventStartDate', '2026-11-20')
+            ->set('eventLocation', 'Main Hall')
+            ->call('saveEventSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertPushed(SyncEventToGoogleCalendarJob::class, fn ($job) => $job->eventId === $eventForm->event_id && $job->action === 'upsert');
     }
 }

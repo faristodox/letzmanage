@@ -29,7 +29,7 @@ class UiSmokeTest extends TestCase
         $admin = User::factory()->create(['branch_id' => $branch->id]);
         $admin->assignRole(RoleName::Admin->value);
 
-        foreach (['dashboard', 'branches', 'office-spaces', 'users', 'settings', 'bookings', 'bookings/calendar', 'profile'] as $page) {
+        foreach (['dashboard', 'branches', 'office-spaces', 'users', 'settings', 'settings/payments', 'settings/calendar', 'bookings', 'bookings/calendar', 'profile'] as $page) {
             $this->actingAs($admin)->get('/'.$page)->assertOk();
         }
     }

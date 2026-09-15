@@ -9,6 +9,7 @@ use App\Enums\EventFormType;
 use App\Enums\EventPaymentMethod;
 use App\Models\EventForm;
 use App\Models\EventFormField;
+use App\Services\EventCalendarSyncService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -23,6 +24,16 @@ class Builder extends Component
     public string $eventTitle = '';
 
     public string $eventDescription = '';
+
+    public string $eventStartDate = '';
+
+    public string $eventStartTime = '';
+
+    public string $eventEndDate = '';
+
+    public string $eventEndTime = '';
+
+    public string $eventLocation = '';
 
     public $banner = null;
 
@@ -93,6 +104,11 @@ class Builder extends Component
         $event = $eventForm->event;
         $this->eventTitle = $event->title;
         $this->eventDescription = (string) $event->description;
+        $this->eventStartDate = $event->start_date?->format('Y-m-d') ?? '';
+        $this->eventStartTime = $event->start_time ?? '';
+        $this->eventEndDate = $event->end_date?->format('Y-m-d') ?? '';
+        $this->eventEndTime = $event->end_time ?? '';
+        $this->eventLocation = $event->location ?? '';
         $this->existingBannerPath = $event->banner_path;
 
         $this->status = $eventForm->status->value;
@@ -116,13 +132,18 @@ class Builder extends Component
         $this->syncPaymentOptionPrices($eventForm->pricing_field_id ? $eventForm->pricingField : null);
     }
 
-    public function saveEventSettings(): void
+    public function saveEventSettings(EventCalendarSyncService $calendarSync): void
     {
         $this->authorize('update', $this->eventForm);
 
         $data = $this->validate([
             'eventTitle' => ['required', 'string', 'max:255'],
             'eventDescription' => ['nullable', 'string'],
+            'eventStartDate' => ['nullable', 'date'],
+            'eventStartTime' => ['nullable', 'date_format:H:i'],
+            'eventEndDate' => ['nullable', 'date', ...($this->eventStartDate ? ['after_or_equal:eventStartDate'] : [])],
+            'eventEndTime' => ['nullable', 'date_format:H:i'],
+            'eventLocation' => ['nullable', 'string', 'max:255'],
             'banner' => ['nullable', 'image', 'max:2048'],
         ]);
 
@@ -142,12 +163,19 @@ class Builder extends Component
         $event->update([
             'title' => $data['eventTitle'],
             'description' => $data['eventDescription'] ?: null,
+            'start_date' => $data['eventStartDate'] ?: null,
+            'start_time' => $data['eventStartTime'] ?: null,
+            'end_date' => $data['eventEndDate'] ?: null,
+            'end_time' => $data['eventEndTime'] ?: null,
+            'location' => $data['eventLocation'] ?: null,
             'banner_path' => $bannerPath,
         ]);
 
         $this->banner = null;
         $this->removeBanner = false;
         $this->existingBannerPath = $bannerPath;
+
+        $calendarSync->reconcile($event);
 
         session()->flash('status', __('Event settings saved.'));
     }
@@ -315,7 +343,7 @@ class Builder extends Component
         session()->flash('status', __('Payment settings saved.'));
     }
 
-    public function saveFormSettings(): void
+    public function saveFormSettings(EventCalendarSyncService $calendarSync): void
     {
         $this->authorize('update', $this->eventForm);
 
@@ -328,6 +356,13 @@ class Builder extends Component
             'status' => EventFormStatus::from($data['status']),
             'closes_at' => $data['closes_at'] ?: null,
         ]);
+
+        // Only the registration form's publish state marks an event "live" —
+        // a feedback form (also an EventForm with its own status) shouldn't
+        // affect calendar sync at all.
+        if ($this->eventForm->type === EventFormType::Registration) {
+            $calendarSync->reconcile($this->eventForm->event);
+        }
 
         session()->flash('status', __('Form settings saved.'));
     }

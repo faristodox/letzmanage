@@ -88,7 +88,7 @@
         <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0">
             <div class="fixed inset-0 bg-slate-900/50" wire:click="closeModal"></div>
 
-            <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-md">
+            <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-lg">
                 <form wire:submit="save" class="p-6 sm:p-8">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('New Event') }}</h2>
                     <p class="mt-1 text-sm text-slate-500">{{ __("You'll add registration fields on the next screen.") }}</p>
@@ -97,6 +97,39 @@
                         <x-input-label for="title" :value="__('Title')" />
                         <x-text-input wire:model="title" id="title" type="text" class="mt-1 block w-full" placeholder="{{ __('e.g. Annual Dinner 2026') }}" autofocus />
                         <x-input-error :messages="$errors->get('title')" class="mt-2" />
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="startDate" :value="__('Event Date')" />
+                            <x-text-input wire:model="startDate" id="startDate" type="date" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('startDate')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="startTime" :value="__('Start Time (optional)')" />
+                            <x-text-input wire:model="startTime" id="startTime" type="time" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('startTime')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="endDate" :value="__('End Date (optional)')" />
+                            <x-text-input wire:model="endDate" id="endDate" type="date" class="mt-1 block w-full" />
+                            <p class="mt-1 text-xs text-slate-400">{{ __('Leave blank for a one-day event.') }}</p>
+                            <x-input-error :messages="$errors->get('endDate')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="endTime" :value="__('End Time (optional)')" />
+                            <x-text-input wire:model="endTime" id="endTime" type="time" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('endTime')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <x-input-label for="location" :value="__('Location (optional)')" />
+                        <x-text-input wire:model="location" id="location" type="text" class="mt-1 block w-full" placeholder="{{ __('e.g. Dewan Serbaguna, Kuala Lumpur') }}" />
+                        <x-input-error :messages="$errors->get('location')" class="mt-2" />
                     </div>
 
                     <div class="mt-6 flex justify-end gap-3">

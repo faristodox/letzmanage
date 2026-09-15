@@ -25,32 +25,6 @@
             </li>
         @else
 
-        @can('viewAny', App\Models\Branch::class)
-            <li>
-                <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.index')" wire:navigate
-                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
-                    :title="'Branches'">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('branches.index') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v16.5h-15V3.75ZM9 21v-3.75a1.125 1.125 0 0 1 1.125-1.125h3.75A1.125 1.125 0 0 1 15 17.25V21M8.25 9h1.5m-1.5 3h1.5m-1.5 3h1.5m5.25-6h1.5m-1.5 3h1.5m-1.5 3h1.5" />
-                    </svg>
-                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Branches') }}</span>
-                </x-nav-link>
-            </li>
-        @endcan
-
-        @can('viewAny', App\Models\OfficeSpace::class)
-            <li>
-                <x-nav-link :href="route('office-spaces.index')" :active="request()->routeIs('office-spaces.index')" wire:navigate
-                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
-                    :title="'Office Spaces'">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('office-spaces.index') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Office Spaces') }}</span>
-                </x-nav-link>
-            </li>
-        @endcan
-
         @can('viewAny', App\Models\Booking::class)
             <li>
                 <x-nav-link :href="route('bookings.index')" :active="request()->routeIs('bookings.index')" wire:navigate
@@ -116,6 +90,19 @@
             </li>
         @endcan
 
+        @can('viewAny', App\Models\ArchivedFile::class)
+            <li>
+                <x-nav-link :href="route('archive.index')" :active="request()->routeIs('archive.*')" wire:navigate
+                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
+                    :title="'Archive'">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('archive.*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                    </svg>
+                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Archive') }}</span>
+                </x-nav-link>
+            </li>
+        @endcan
+
         @if (app(\App\Support\CurrentOrganization::class)->get()?->hasSpiEnabled() && auth()->user()->can('view spi data'))
         <li>
             <x-nav-link :href="route('spi-members.index')" :active="request()->routeIs('spi-members.index')" wire:navigate
@@ -139,19 +126,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                     </svg>
                     <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Settings') }}</span>
-                </x-nav-link>
-            </li>
-        @endcan
-
-        @can('manage roles')
-            <li>
-                <x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')" wire:navigate
-                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
-                    :title="'Roles & Permissions'">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('roles.index') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
-                    </svg>
-                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Roles & Permissions') }}</span>
                 </x-nav-link>
             </li>
         @endcan

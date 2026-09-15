@@ -62,4 +62,9 @@ class Organization extends Model
     {
         return $this->hasOne(OrganizationPaymentSetting::class);
     }
+
+    public function calendarSetting(): HasOne
+    {
+        return $this->hasOne(OrganizationCalendarSetting::class);
+    }
 }

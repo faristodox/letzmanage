@@ -91,4 +91,35 @@ class EventRegistrationTenancyTest extends TestCase
         $this->get(route('event-registration.show', ['organization' => $organization, 'eventSlug' => $event->slug]))
             ->assertNotFound();
     }
+
+    public function test_event_schedule_and_location_are_shown_when_set(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->create([
+            'organization_id' => $organization->id,
+            'start_date' => '2026-11-20',
+            'start_time' => '19:00',
+            'location' => 'Dewan Serbaguna, Kuala Lumpur',
+        ]);
+        EventForm::factory()->for($event)->published()->create(['organization_id' => $organization->id]);
+
+        $this->get(route('event-registration.show', ['organization' => $organization, 'eventSlug' => $event->slug]))
+            ->assertOk()
+            ->assertSee('20 Nov 2026, 7:00 PM')
+            ->assertSee('Dewan Serbaguna, Kuala Lumpur');
+    }
+
+    public function test_no_schedule_or_location_is_shown_when_not_set(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->create(['organization_id' => $organization->id]);
+        EventForm::factory()->for($event)->published()->create(['organization_id' => $organization->id]);
+
+        // The schedule/location line's wrapper only renders when the event
+        // has one or the other — check for the calendar icon's distinctive
+        // SVG path rather than the event's own text (which is empty here).
+        $this->get(route('event-registration.show', ['organization' => $organization, 'eventSlug' => $event->slug]))
+            ->assertOk()
+            ->assertDontSee('M6.75 3v2.25M17.25 3v2.25');
+    }
 }

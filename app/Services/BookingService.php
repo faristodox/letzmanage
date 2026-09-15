@@ -6,6 +6,7 @@ use App\Enums\ApprovalMode;
 use App\Enums\BookingStatus;
 use App\Enums\RoleName;
 use App\Exceptions\BookingConflictException;
+use App\Jobs\SyncBookingToGoogleCalendarJob;
 use App\Models\Booking;
 use App\Models\OfficeSpace;
 use App\Models\User;
@@ -15,17 +16,15 @@ use App\Notifications\BookingRejectedNotification;
 use App\Notifications\BookingSubmittedNotification;
 use App\Notifications\GuestBookingReceivedNotification;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Collection;
 use Throwable;
 
 class BookingService
 {
-    public function __construct(private SystemSettingService $settings)
-    {
-    }
+    public function __construct(private SystemSettingService $settings) {}
 
     /**
      * Create a new booking, applying overlap validation and the branch's approval mode.
@@ -51,6 +50,7 @@ class BookingService
             $this->notifyEmail($booking->user, new BookingApprovedNotification($booking));
             $this->notifyEmail($this->approvers($booking), new BookingAutoApprovedNotification($booking));
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
+            $this->syncToGoogleCalendar($booking, 'upsert');
         } else {
             $this->notifyEmail($this->approvers($booking), new BookingSubmittedNotification($booking));
             $this->notifyTelegramPending($booking);
@@ -87,6 +87,7 @@ class BookingService
         if ($mode === ApprovalMode::Auto) {
             $this->notifyEmail($this->approvers($booking), new BookingAutoApprovedNotification($booking));
             $this->notifyTelegram(new BookingAutoApprovedNotification($booking));
+            $this->syncToGoogleCalendar($booking, 'upsert');
         } else {
             $this->notifyEmail($this->approvers($booking), new BookingSubmittedNotification($booking));
             $this->notifyTelegramPending($booking);
@@ -121,6 +122,7 @@ class BookingService
 
         $this->notifyRequester($booking, new BookingApprovedNotification($booking));
         $this->notifyTelegram(new BookingApprovedNotification($booking));
+        $this->syncToGoogleCalendar($booking, 'upsert');
 
         return $booking;
     }
@@ -141,6 +143,10 @@ class BookingService
         $this->notifyRequester($booking, new BookingRejectedNotification($booking));
         $this->notifyTelegram(new BookingRejectedNotification($booking));
 
+        if ($booking->google_event_id) {
+            $this->syncToGoogleCalendar($booking, 'delete');
+        }
+
         return $booking;
     }
 
@@ -150,6 +156,10 @@ class BookingService
     public function cancel(Booking $booking): Booking
     {
         $booking->update(['status' => BookingStatus::Cancelled]);
+
+        if ($booking->google_event_id) {
+            $this->syncToGoogleCalendar($booking, 'delete');
+        }
 
         return $booking;
     }
@@ -210,6 +220,22 @@ class BookingService
             ]);
 
             $this->notifyRequester($conflict, new BookingRejectedNotification($conflict));
+        }
+    }
+
+    /**
+     * Queue a Google Calendar sync for a booking. Only the dispatch() call
+     * itself is guarded here (it practically only throws if the queue
+     * connection is unreachable) — the actual Google API call happens later
+     * in a separate queue-worker process, so it can never turn this booking
+     * action into a user-facing error.
+     */
+    private function syncToGoogleCalendar(Booking $booking, string $action): void
+    {
+        try {
+            SyncBookingToGoogleCalendarJob::dispatch($booking->organization_id, $booking->id, $action);
+        } catch (Throwable $e) {
+            Log::warning('Failed to queue Google Calendar sync: '.$e->getMessage(), ['booking_id' => $booking->id]);
         }
     }
 

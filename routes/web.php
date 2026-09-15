@@ -5,6 +5,7 @@ use App\Enums\EventFormType;
 use App\Enums\FormStatus;
 use App\Enums\OrganizationStatus;
 use App\Http\Controllers\ChipWebhookController;
+use App\Http\Controllers\GoogleCalendarConnectionController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Models\Event;
 use App\Models\EventForm;
@@ -148,12 +149,24 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
+Route::get('profile/google-calendar/connect', [GoogleCalendarConnectionController::class, 'redirectForIndividual'])
+    ->middleware(['auth'])
+    ->name('profile.google-calendar.connect');
+Route::get('profile/google-calendar/callback', [GoogleCalendarConnectionController::class, 'callbackForIndividual'])
+    ->middleware(['auth'])
+    ->name('profile.google-calendar.callback');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('branches', 'branches.index')->name('branches.index');
     Route::view('office-spaces', 'office-spaces.index')->name('office-spaces.index');
     Route::view('users', 'users.index')->name('users.index');
     Route::view('settings', 'settings.index')->name('settings.index');
     Route::view('settings/payments', 'settings.payments')->name('settings.payments')->can('manage settings');
+    Route::view('settings/calendar', 'settings.calendar')->name('settings.calendar')->can('manage settings');
+    Route::get('settings/calendar/google/connect', [GoogleCalendarConnectionController::class, 'redirectForShared'])
+        ->name('settings.calendar.google.connect')->can('manage settings');
+    Route::get('settings/calendar/google/callback', [GoogleCalendarConnectionController::class, 'callbackForShared'])
+        ->name('settings.calendar.google.callback')->can('manage settings');
     Route::view('roles', 'roles.index')->name('roles.index')->can('manage roles');
     Route::view('bookings', 'bookings.index')->name('bookings.index');
     Route::view('bookings/calendar', 'bookings.calendar')->name('bookings.calendar');
@@ -193,6 +206,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     ]))->name('event-forms.preview')->can('view', 'eventForm');
 
     Route::view('forms', 'forms.index')->name('forms.index');
+
+    Route::view('archive', 'archive.index')->name('archive.index');
 
     Route::get('forms/{form}/builder', fn (Form $form) => view('forms.builder', ['form' => $form]))
         ->name('forms.builder')->can('update', 'form');

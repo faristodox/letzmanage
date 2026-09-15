@@ -13,6 +13,62 @@
         </div>
     @endcan
 
+    @can('viewAny', App\Models\OrganizationCalendarSetting::class)
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Google Integrations') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __('Connect Google for Calendar Sync (shared or per-staff) and File Archive.') }}</p>
+                </div>
+                <a href="{{ route('settings.calendar') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
+    @can('viewAny', App\Models\Branch::class)
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Branches') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __("Manage your organization's branch locations.") }}</p>
+                </div>
+                <a href="{{ route('branches.index') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
+    @can('viewAny', App\Models\OfficeSpace::class)
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Office Spaces') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __('Manage the bookable spaces available at your branches.') }}</p>
+                </div>
+                <a href="{{ route('office-spaces.index') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
+    @can('manage roles')
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Roles & Permissions') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __('Control which features each role can access.') }}</p>
+                </div>
+                <a href="{{ route('roles.index') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
     <div
         x-data="{ saved: false }"
         x-on:settings-saved.window="saved = true; setTimeout(() => saved = false, 3000)"

@@ -6,8 +6,9 @@ use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
 use App\Models\Event;
 use App\Models\EventForm;
+use App\Services\EventCalendarSyncService;
+use App\Services\EventCreationService;
 use Illuminate\Support\Facades\Storage;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,8 +18,17 @@ class Index extends Component
 
     public bool $showModal = false;
 
-    #[Validate('required|string|max:255')]
     public string $title = '';
+
+    public string $startDate = '';
+
+    public string $startTime = '';
+
+    public string $endDate = '';
+
+    public string $endTime = '';
+
+    public string $location = '';
 
     public ?int $confirmingDeleteId = null;
 
@@ -31,35 +41,37 @@ class Index extends Component
     {
         $this->authorize('create', Event::class);
 
-        $this->reset(['title']);
+        $this->reset(['title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
         $this->showModal = true;
     }
 
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['title']);
+        $this->reset(['title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
         $this->resetValidation();
     }
 
-    public function save(): void
+    public function save(EventCreationService $eventCreation): void
     {
         $this->authorize('create', Event::class);
 
-        $data = $this->validate();
-
-        $event = Event::create([
-            'title' => $data['title'],
-            'slug' => Event::uniqueSlug($data['title']),
-            'status' => EventFormStatus::Draft,
-            'created_by' => auth()->id(),
+        $data = $this->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'startDate' => ['nullable', 'date'],
+            'startTime' => ['nullable', 'date_format:H:i'],
+            'endDate' => ['nullable', 'date', ...($this->startDate ? ['after_or_equal:startDate'] : [])],
+            'endTime' => ['nullable', 'date_format:H:i'],
+            'location' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $registrationForm = EventForm::create([
-            'event_id' => $event->id,
-            'type' => EventFormType::Registration,
-            'status' => EventFormStatus::Draft,
-            'created_by' => auth()->id(),
+        $registrationForm = $eventCreation->createWithRegistrationForm([
+            'title' => $data['title'],
+            'start_date' => $data['startDate'] ?: null,
+            'start_time' => $data['startTime'] ?: null,
+            'end_date' => $data['endDate'] ?: null,
+            'end_time' => $data['endTime'] ?: null,
+            'location' => $data['location'] ?: null,
         ]);
 
         $this->redirect(route('event-forms.builder', $registrationForm), navigate: true);
@@ -93,7 +105,7 @@ class Index extends Component
         $this->confirmingDeleteId = null;
     }
 
-    public function delete(): void
+    public function delete(EventCalendarSyncService $calendarSync): void
     {
         $event = Event::findOrFail($this->confirmingDeleteId);
         $this->authorize('delete', $event);
@@ -101,6 +113,8 @@ class Index extends Component
         if ($event->banner_path) {
             Storage::disk('public')->delete($event->banner_path);
         }
+
+        $calendarSync->syncOnDelete($event);
 
         $event->delete();
         $this->confirmingDeleteId = null;

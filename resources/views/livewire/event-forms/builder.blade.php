@@ -97,6 +97,39 @@
                 <x-input-error :messages="$errors->get('eventDescription')" class="mt-2" />
             </div>
 
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="eventStartDate" :value="__('Event Date')" />
+                    <x-text-input wire:model="eventStartDate" id="eventStartDate" type="date" class="mt-1 block w-full" />
+                    <x-input-error :messages="$errors->get('eventStartDate')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="eventStartTime" :value="__('Start Time (optional)')" />
+                    <x-text-input wire:model="eventStartTime" id="eventStartTime" type="time" class="mt-1 block w-full" />
+                    <x-input-error :messages="$errors->get('eventStartTime')" class="mt-2" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="eventEndDate" :value="__('End Date (optional)')" />
+                    <x-text-input wire:model="eventEndDate" id="eventEndDate" type="date" class="mt-1 block w-full" />
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Leave blank for a one-day event.') }}</p>
+                    <x-input-error :messages="$errors->get('eventEndDate')" class="mt-2" />
+                </div>
+                <div>
+                    <x-input-label for="eventEndTime" :value="__('End Time (optional)')" />
+                    <x-text-input wire:model="eventEndTime" id="eventEndTime" type="time" class="mt-1 block w-full" />
+                    <x-input-error :messages="$errors->get('eventEndTime')" class="mt-2" />
+                </div>
+            </div>
+
+            <div>
+                <x-input-label for="eventLocation" :value="__('Location (optional)')" />
+                <x-text-input wire:model="eventLocation" id="eventLocation" type="text" class="mt-1 block w-full" placeholder="{{ __('e.g. Dewan Serbaguna, Kuala Lumpur') }}" />
+                <x-input-error :messages="$errors->get('eventLocation')" class="mt-2" />
+            </div>
+
             <div>
                 <x-input-label for="banner" :value="__('Banner Image (optional)')" />
                 <p class="mt-0.5 text-xs text-slate-400">

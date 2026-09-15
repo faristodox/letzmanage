@@ -40,11 +40,17 @@ return [
         'chat_id' => env('TELEGRAM_CHAT_ID'),
     ],
 
-    'spi' => [
-        'username'   => env('SPI_USERNAME'),
-        'password'   => env('SPI_PASSWORD'),
-        'ssl_verify' => env('SPI_SSL_VERIFY', true),
+    'google_calendar' => [
+        'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET'),
+        'redirect_uri_shared' => env('GOOGLE_CALENDAR_REDIRECT_URI_SHARED'),
+        'redirect_uri_individual' => env('GOOGLE_CALENDAR_REDIRECT_URI_INDIVIDUAL'),
     ],
 
+    'spi' => [
+        'username' => env('SPI_USERNAME'),
+        'password' => env('SPI_PASSWORD'),
+        'ssl_verify' => env('SPI_SSL_VERIFY', true),
+    ],
 
 ];

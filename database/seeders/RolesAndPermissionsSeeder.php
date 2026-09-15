@@ -36,6 +36,7 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::CheckInEventParticipants,
             PermissionName::ManageForms,
             PermissionName::ViewFormResponses,
+            PermissionName::ManageArchive,
         ]);
 
         $staff = Role::findOrCreate(RoleName::Staff->value);

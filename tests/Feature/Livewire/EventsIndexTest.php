@@ -9,9 +9,12 @@ use App\Livewire\Events\Index;
 use App\Models\Event;
 use App\Models\EventForm;
 use App\Models\EventFormResponse;
+use App\Models\Organization;
+use App\Models\OrganizationCalendarSetting;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -50,6 +53,58 @@ class EventsIndexTest extends TestCase
         $this->assertSame($admin->id, $registrationForm->created_by);
     }
 
+    public function test_admin_can_set_the_schedule_and_location_when_creating_an_event(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('title', 'Annual Dinner 2026')
+            ->set('startDate', '2026-11-20')
+            ->set('startTime', '19:00')
+            ->set('location', 'Dewan Serbaguna, Kuala Lumpur')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $event = Event::where('title', 'Annual Dinner 2026')->first();
+        $this->assertSame('2026-11-20', $event->start_date->format('Y-m-d'));
+        $this->assertSame('19:00', $event->start_time);
+        $this->assertNull($event->end_date);
+        $this->assertSame('Dewan Serbaguna, Kuala Lumpur', $event->location);
+    }
+
+    public function test_creating_an_event_with_end_date_before_start_date_fails_validation(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('title', 'Annual Dinner 2026')
+            ->set('startDate', '2026-11-20')
+            ->set('endDate', '2026-11-18')
+            ->call('save')
+            ->assertHasErrors(['endDate']);
+    }
+
+    public function test_schedule_fields_are_optional_when_creating_an_event(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('title', 'Annual Dinner 2026')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertNotNull(Event::where('title', 'Annual Dinner 2026')->first());
+    }
+
     public function test_staff_cannot_create_an_event(): void
     {
         $staff = User::factory()->create();
@@ -77,6 +132,47 @@ class EventsIndexTest extends TestCase
         $this->assertNull(Event::find($event->id));
         $this->assertNull(EventForm::find($registrationForm->id));
         $this->assertSame(0, EventFormResponse::count());
+    }
+
+    public function test_deleting_a_synced_event_deletes_its_google_calendar_event_first(): void
+    {
+        Http::fake(['https://www.googleapis.com/calendar/v3/*' => Http::response([], 204)]);
+
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        $admin = User::factory()->create(['organization_id' => $organization->id]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        $event = Event::factory()->for($organization)->create(['google_event_id' => 'gcal-event-to-delete']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('confirmDelete', $event->id)
+            ->call('delete');
+
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE' && str_contains($request->url(), 'gcal-event-to-delete'));
+        $this->assertNull(Event::find($event->id));
+    }
+
+    public function test_deleting_an_unsynced_event_sends_nothing_to_google(): void
+    {
+        Http::fake();
+
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        $admin = User::factory()->create(['organization_id' => $organization->id]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        $event = Event::factory()->for($organization)->create(['google_event_id' => null]);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('confirmDelete', $event->id)
+            ->call('delete');
+
+        Http::assertNothingSent();
     }
 
     public function test_deleting_an_event_also_deletes_its_banner_file(): void

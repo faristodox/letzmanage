@@ -15,6 +15,12 @@
             <livewire:profile.update-password-form />
         </div>
 
+        @if (auth()->user()->organization?->calendarSetting?->sync_mode === App\Enums\CalendarSyncMode::Individual)
+            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <livewire:profile.google-calendar-connection />
+            </div>
+        @endif
+
         <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <livewire:profile.delete-user-form />
         </div>
