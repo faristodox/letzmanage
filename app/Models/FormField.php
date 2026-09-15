@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['organization_id', 'form_id', 'label', 'type', 'options', 'required', 'help_text', 'order'])]
+#[Fillable(['organization_id', 'form_id', 'label', 'type', 'options', 'required', 'help_text', 'order', 'verify_spi_membership'])]
 class FormField extends Model
 {
     use BelongsToOrganization, HasFactory;
@@ -20,6 +20,7 @@ class FormField extends Model
             'type' => FormFieldType::class,
             'options' => 'array',
             'required' => 'boolean',
+            'verify_spi_membership' => 'boolean',
         ];
     }
 

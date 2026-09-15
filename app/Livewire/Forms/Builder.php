@@ -32,6 +32,8 @@ class Builder extends Component
 
     public bool $fieldRequired = false;
 
+    public bool $fieldVerifySpiMembership = false;
+
     public string $fieldOptions = '';
 
     public ?int $confirmingDeleteFieldId = null;
@@ -93,6 +95,7 @@ class Builder extends Component
         $this->fieldType = $field->type->value;
         $this->fieldHelpText = (string) $field->help_text;
         $this->fieldRequired = $field->required;
+        $this->fieldVerifySpiMembership = $field->verify_spi_membership;
         $this->fieldOptions = implode("\n", $field->options ?? []);
         $this->showFieldModal = true;
     }
@@ -106,7 +109,17 @@ class Builder extends Component
 
     private function resetFieldForm(): void
     {
-        $this->reset(['editingFieldId', 'fieldLabel', 'fieldType', 'fieldHelpText', 'fieldRequired', 'fieldOptions']);
+        $this->reset(['editingFieldId', 'fieldLabel', 'fieldType', 'fieldHelpText', 'fieldRequired', 'fieldVerifySpiMembership', 'fieldOptions']);
+    }
+
+    /**
+     * Whether this form's organization has SPI membership data enabled —
+     * gates the "must match a registered member" option on an IC Number
+     * field, since without SPI data there's nothing to verify against.
+     */
+    public function organizationHasSpiEnabled(): bool
+    {
+        return $this->form->organization?->hasSpiEnabled() ?? false;
     }
 
     public function saveField(): void
@@ -129,6 +142,14 @@ class Builder extends Component
                 ->all()
             : null;
 
+        // Only meaningful (and only ever persisted true) for an IC Number field
+        // on an organization that actually has SPI membership data to check
+        // against — otherwise the checkbox is either hidden or would check
+        // against nothing.
+        $verifySpiMembership = $type === FormFieldType::IcNumber
+            && $this->fieldVerifySpiMembership
+            && $this->organizationHasSpiEnabled();
+
         if ($this->editingFieldId) {
             $field = $this->form->fields()->findOrFail($this->editingFieldId);
 
@@ -139,6 +160,7 @@ class Builder extends Component
                     'label' => $data['fieldLabel'],
                     'help_text' => $data['fieldHelpText'] ?: null,
                     'required' => $this->fieldRequired,
+                    'verify_spi_membership' => $field->type === FormFieldType::IcNumber && $verifySpiMembership,
                 ]);
             } else {
                 $field->update([
@@ -147,6 +169,7 @@ class Builder extends Component
                     'options' => $options,
                     'help_text' => $data['fieldHelpText'] ?: null,
                     'required' => $this->fieldRequired,
+                    'verify_spi_membership' => $verifySpiMembership,
                 ]);
             }
         } else {
@@ -157,6 +180,7 @@ class Builder extends Component
                 'options' => $options,
                 'help_text' => $data['fieldHelpText'] ?: null,
                 'required' => $this->fieldRequired,
+                'verify_spi_membership' => $verifySpiMembership,
                 'order' => ($this->form->fields()->max('order') ?? 0) + 1,
             ]);
         }
@@ -227,6 +251,7 @@ class Builder extends Component
             'fields' => $this->form->fields()->get(),
             'statuses' => FormStatus::cases(),
             'fieldTypes' => FormFieldType::cases(),
+            'orgHasSpi' => $this->organizationHasSpiEnabled(),
         ]);
     }
 }

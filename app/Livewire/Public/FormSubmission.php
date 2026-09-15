@@ -6,6 +6,7 @@ use App\Enums\FormFieldType;
 use App\Models\Form;
 use App\Models\FormResponse;
 use App\Models\Organization;
+use App\Models\SpiMember;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,10 @@ class FormSubmission extends Component
                 FormFieldType::Checkbox => [$field->required ? 'required' : 'nullable', 'array'],
                 FormFieldType::Select, FormFieldType::Radio => [$prefix, 'string', Rule::in($field->options ?? [])],
                 FormFieldType::File => [$prefix, 'file', 'max:10240'],
+                FormFieldType::IcNumber => [
+                    $prefix, 'digits:12',
+                    ...($field->verify_spi_membership ? [$this->matchesSpiMemberRule()] : []),
+                ],
                 default => [$prefix, 'string', 'max:2000'],
             };
 
@@ -76,12 +81,37 @@ class FormSubmission extends Component
         return $rules;
     }
 
+    /**
+     * Rejects an IC number that doesn't belong to any member in this
+     * organization's SPI data. SpiMember carries its own organization scope
+     * (kept in sync by boot(), same as every other query this component
+     * makes), so this never leaks across tenants.
+     */
+    private function matchesSpiMemberRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value && ! SpiMember::where('no_kp', $value)->exists()) {
+                $fail(__('This IC number does not match any registered member.'));
+            }
+        };
+    }
+
     public function submit(): void
     {
         $form = $this->form();
 
         if (! $this->preview && ! $form->isAcceptingResponses()) {
             return;
+        }
+
+        // Accept an IC number typed with the usual dashes/spaces (e.g.
+        // "901231-14-5678") — normalize to digits-only before validating so
+        // both the digits:12 format check and the SPI lookup below see the
+        // same clean value that's stored in spi_members.no_kp.
+        foreach ($form->fields as $field) {
+            if ($field->type === FormFieldType::IcNumber && isset($this->answers[$field->id])) {
+                $this->answers[$field->id] = preg_replace('/\D+/', '', (string) $this->answers[$field->id]);
+            }
         }
 
         $this->validate($this->rulesFor($form));

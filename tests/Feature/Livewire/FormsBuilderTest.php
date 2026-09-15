@@ -9,6 +9,7 @@ use App\Livewire\Forms\Builder;
 use App\Models\Form;
 use App\Models\FormField;
 use App\Models\FormResponse;
+use App\Models\Organization;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -150,5 +151,60 @@ class FormsBuilderTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(FormStatus::Closed, $form->refresh()->status);
+    }
+
+    public function test_admin_can_require_spi_membership_verification_on_an_ic_number_field_when_spi_is_enabled(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => true]);
+        $form = Form::factory()->create(['organization_id' => $organization->id]);
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['form' => $form])
+            ->call('addField')
+            ->set('fieldLabel', 'IC Number')
+            ->set('fieldType', FormFieldType::IcNumber->value)
+            ->set('fieldVerifySpiMembership', true)
+            ->call('saveField')
+            ->assertHasNoErrors();
+
+        $field = $form->fields()->first();
+        $this->assertSame(FormFieldType::IcNumber, $field->type);
+        $this->assertTrue($field->verify_spi_membership);
+    }
+
+    public function test_spi_membership_verification_is_ignored_when_the_organization_does_not_have_spi_enabled(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => false]);
+        $form = Form::factory()->create(['organization_id' => $organization->id]);
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['form' => $form])
+            ->call('addField')
+            ->set('fieldLabel', 'IC Number')
+            ->set('fieldType', FormFieldType::IcNumber->value)
+            ->set('fieldVerifySpiMembership', true)
+            ->call('saveField')
+            ->assertHasNoErrors();
+
+        $field = $form->fields()->first();
+        $this->assertFalse($field->verify_spi_membership);
+    }
+
+    public function test_spi_membership_verification_is_ignored_for_non_ic_number_field_types(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => true]);
+        $form = Form::factory()->create(['organization_id' => $organization->id]);
+
+        Livewire::actingAs($this->admin())
+            ->test(Builder::class, ['form' => $form])
+            ->call('addField')
+            ->set('fieldLabel', 'Full Name')
+            ->set('fieldType', FormFieldType::Text->value)
+            ->set('fieldVerifySpiMembership', true)
+            ->call('saveField')
+            ->assertHasNoErrors();
+
+        $field = $form->fields()->first();
+        $this->assertFalse($field->verify_spi_membership);
     }
 }

@@ -52,6 +52,10 @@
         <input type="tel" wire:model="{{ $wireModel }}" class="block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
         @break
 
+    @case('ic_number')
+        <input type="text" inputmode="numeric" placeholder="YYMMDD-PB-###G" wire:model="{{ $wireModel }}" class="block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        @break
+
     @case('file')
         <input type="file" wire:model="{{ $wireModel }}" class="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100">
         <div wire:loading wire:target="{{ $wireModel }}" class="mt-1 text-xs text-slate-500">{{ __('Uploading...') }}</div>

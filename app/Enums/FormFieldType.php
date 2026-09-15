@@ -14,6 +14,15 @@ enum FormFieldType: string
     case Radio = 'radio';
     case Checkbox = 'checkbox';
     case File = 'file';
+    case IcNumber = 'ic_number';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::IcNumber => 'IC Number (MyKad)',
+            default => ucfirst(str_replace('_', ' ', $this->value)),
+        };
+    }
 
     /**
      * Whether this field type is answered by picking from a fixed set of options

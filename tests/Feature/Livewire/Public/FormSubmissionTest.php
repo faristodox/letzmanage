@@ -8,6 +8,9 @@ use App\Livewire\Public\FormSubmission;
 use App\Models\Form;
 use App\Models\FormField;
 use App\Models\FormResponse;
+use App\Models\Organization;
+use App\Models\SpiMember;
+use App\Support\CurrentOrganization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -130,6 +133,120 @@ class FormSubmissionTest extends TestCase
         Livewire::test(FormSubmission::class, ['form' => $form])
             ->call('submit')
             ->assertHasErrors(["answers.{$uploadField->id}"]);
+
+        $this->assertSame(0, FormResponse::count());
+    }
+
+    public function test_ic_number_field_requires_a_valid_12_digit_mykad_format(): void
+    {
+        $form = Form::factory()->published()->create();
+        $icField = FormField::factory()->for($form, 'form')->create([
+            'type' => FormFieldType::IcNumber,
+            'required' => true,
+        ]);
+
+        Livewire::test(FormSubmission::class, ['form' => $form])
+            ->set("answers.{$icField->id}", '12345')
+            ->call('submit')
+            ->assertHasErrors(["answers.{$icField->id}"]);
+
+        $this->assertSame(0, FormResponse::count());
+    }
+
+    public function test_ic_number_field_normalizes_dashes_before_validating_and_storing(): void
+    {
+        $form = Form::factory()->published()->create();
+        $icField = FormField::factory()->for($form, 'form')->create([
+            'type' => FormFieldType::IcNumber,
+            'required' => true,
+        ]);
+
+        Livewire::test(FormSubmission::class, ['form' => $form])
+            ->set("answers.{$icField->id}", '901231-14-5678')
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $response = FormResponse::first();
+        $this->assertSame('901231145678', $response->answers[$icField->id]);
+    }
+
+    public function test_ic_number_field_rejects_a_number_that_does_not_match_a_registered_member_when_verification_is_enabled(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => true]);
+        $ctx = app(CurrentOrganization::class);
+
+        $form = $ctx->runFor($organization, fn () => Form::factory()->published()->create());
+        $icField = $ctx->runFor($organization, fn () => FormField::factory()->for($form, 'form')->create([
+            'type' => FormFieldType::IcNumber,
+            'required' => true,
+            'verify_spi_membership' => true,
+        ]));
+
+        $ctx->set($organization);
+
+        Livewire::test(FormSubmission::class, ['form' => $form])
+            ->set("answers.{$icField->id}", '901231145678')
+            ->call('submit')
+            ->assertHasErrors(["answers.{$icField->id}"]);
+
+        $this->assertSame(0, FormResponse::count());
+    }
+
+    public function test_ic_number_field_accepts_a_number_that_matches_a_registered_member(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => true]);
+        $ctx = app(CurrentOrganization::class);
+
+        $form = $ctx->runFor($organization, fn () => Form::factory()->published()->create());
+        $icField = $ctx->runFor($organization, fn () => FormField::factory()->for($form, 'form')->create([
+            'type' => FormFieldType::IcNumber,
+            'required' => true,
+            'verify_spi_membership' => true,
+        ]));
+        $ctx->runFor($organization, fn () => SpiMember::create([
+            'no_ahli' => 'A001',
+            'nama' => 'Ahmad Contoh',
+            'no_kp' => '901231145678',
+            'level' => '00',
+        ]));
+
+        $ctx->set($organization);
+
+        Livewire::test(FormSubmission::class, ['form' => $form])
+            ->set("answers.{$icField->id}", '901231145678')
+            ->call('submit')
+            ->assertHasNoErrors()
+            ->assertSet('submitted', true);
+
+        $this->assertSame(1, FormResponse::count());
+    }
+
+    public function test_ic_number_field_does_not_check_membership_for_another_organizations_member(): void
+    {
+        $organization = Organization::factory()->create(['spi_enabled' => true]);
+        $otherOrganization = Organization::factory()->create(['spi_enabled' => true]);
+        $ctx = app(CurrentOrganization::class);
+
+        $form = $ctx->runFor($organization, fn () => Form::factory()->published()->create());
+        $icField = $ctx->runFor($organization, fn () => FormField::factory()->for($form, 'form')->create([
+            'type' => FormFieldType::IcNumber,
+            'required' => true,
+            'verify_spi_membership' => true,
+        ]));
+        // Same IC number, but registered under a different organization.
+        $ctx->runFor($otherOrganization, fn () => SpiMember::create([
+            'no_ahli' => 'B001',
+            'nama' => 'Someone Else',
+            'no_kp' => '901231145678',
+            'level' => '00',
+        ]));
+
+        $ctx->set($organization);
+
+        Livewire::test(FormSubmission::class, ['form' => $form])
+            ->set("answers.{$icField->id}", '901231145678')
+            ->call('submit')
+            ->assertHasErrors(["answers.{$icField->id}"]);
 
         $this->assertSame(0, FormResponse::count());
     }

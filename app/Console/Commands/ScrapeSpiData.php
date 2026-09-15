@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Organization;
 use App\Models\SpiMember;
+use App\Models\SpiNaqibUsrah;
 use App\Models\SpiSantuniMember;
 use App\Support\CurrentOrganization;
 use Illuminate\Console\Command;
@@ -266,7 +267,15 @@ class ScrapeSpiData extends Command
 
     private function scrapeNaqibForLevel(string $level): void
     {
-        $url = $this->baseUrl.'admin_usrahdetail.asp?u_level='.$level;
+        // memberdistrict is a best-effort attempt at server-side filtering,
+        // mirroring the param used on the member-list and santuni endpoints —
+        // unverified for this particular page, so processUsrahDetail() below
+        // still authoritatively filters by each usrah's own Kawasan field
+        // regardless of whether this actually narrows the listing.
+        $url = $this->baseUrl.'admin_usrahdetail.asp?'.http_build_query([
+            'u_level' => $level,
+            'memberdistrict' => $this->district,
+        ]);
 
         $response = $this->get($url);
 
@@ -295,6 +304,14 @@ class ScrapeSpiData extends Command
         }
     }
 
+    /**
+     * Pull the full usrah record from its detail page: the labeled form
+     * fields at the top (Status, Nama Usrah, Negeri, Kawasan, Tahap, Jenis,
+     * Kategori, Naqib, Nota, Tarikh Mula, Tarikh Bubar) plus the member
+     * table below it — and save it as one SpiNaqibUsrah row, upserted by
+     * SPI's own u_id so re-syncing updates the same record instead of
+     * duplicating it.
+     */
     private function processUsrahDetail(string $usrahId): void
     {
         $url      = $this->baseUrl.'admin_usrah_detail.asp?u_id='.$usrahId;
@@ -306,88 +323,223 @@ class ScrapeSpiData extends Command
 
         $crawler = new Crawler($response->body());
 
-        $naqibName = null;
-        $members   = [];
+        $status      = $this->labeledField($crawler, 'Status');
+        $usrahName   = $this->labeledField($crawler, 'Nama Usrah');
+        $negeri      = $this->labeledField($crawler, 'Negeri');
+        $kawasan     = $this->labeledField($crawler, 'Kawasan');
+        $tahap       = $this->labeledField($crawler, 'Tahap');
+        $jenis       = $this->labeledField($crawler, 'Jenis');
+        $kategori    = $this->labeledField($crawler, 'Kategori');
+        $naqibName   = $this->labeledField($crawler, 'Naqib');
+        $nota        = $this->labeledField($crawler, 'Nota');
+        $tarikhMula  = $this->labeledField($crawler, 'Tarikh Mula');
+        $tarikhBubar = $this->labeledField($crawler, 'Tarikh Bubar');
 
-        // Strategy 1: find Naqib name from the header input field.
-        // The detail page has a row like: | Naqib | <input value="FULL NAME"> |
-        $crawler->filter('tr')->each(function (Crawler $row) use (&$naqibName) {
-            $cellTexts = $row->filter('td')->each(fn (Crawler $c) => trim($c->text()));
+        ['members' => $members, 'naqibFromJawatan' => $naqibFromJawatan] = $this->usrahMemberTable($crawler);
 
-            foreach ($cellTexts as $text) {
-                if (strtolower(trim($text)) === 'naqib') {
-                    // The adjacent cell contains an input with the naqib's name
-                    $input = $row->filter('input[type="text"], input:not([type])');
-                    if ($input->count() > 0) {
-                        $val = trim($input->first()->attr('value') ?? '');
-                        if (! empty($val)) {
-                            $naqibName = $val;
-                        }
-                    }
-                    break;
-                }
-            }
-        });
+        // Some levels (e.g. 05) don't carry a labeled "Naqib" field at all —
+        // fall back to whichever member row is marked JAWATAN = "Naqib".
+        $naqibName = $naqibName ?: $naqibFromJawatan;
 
-        // Walk all tables to find the one with NAMA + JAWATAN header columns
-        $crawler->filter('table')->each(function (Crawler $table) use (&$naqibName, &$members) {
-            $headerCells = $this->cells($table->filter('tr')->first());
-            $upper       = array_map('strtoupper', $headerCells);
+        if (! $usrahName && ! $naqibName && empty($members)) {
+            // Page didn't come back in a shape we recognize — nothing to save.
+            return;
+        }
 
-            if (! in_array('NAMA', $upper) || ! in_array('JAWATAN', $upper)) {
-                return;
-            }
+        // Kept even when it doesn't match the organization's own kawasan —
+        // groups marked "SEMUA" or belonging to a neighbouring kawasan are
+        // still relevant to see here, just filterable in the UI by Kawasan.
+        SpiNaqibUsrah::updateOrCreate(
+            ['usrah_id' => (int) $usrahId],
+            [
+                'level' => $tahap ?: null,
+                'usrah_name' => $usrahName,
+                'status' => $status,
+                'naqib_name' => $naqibName ?: null,
+                'is_temporary_group' => ! $naqibName,
+                'jenis' => $jenis,
+                'kategori' => $kategori,
+                'tarikh_mula' => $tarikhMula,
+                'tarikh_bubar' => $tarikhBubar,
+                'nota' => $nota,
+                'negeri' => $negeri,
+                'kawasan' => $kawasan,
+                'members' => $members,
+                'member_count' => count($members),
+                'synced_at' => now(),
+            ]
+        );
 
-            $namaIdx    = array_search('NAMA', $upper);
-            $jawatanIdx = array_search('JAWATAN', $upper);
-
-            $table->filter('tr')->each(function (Crawler $row) use ($namaIdx, $jawatanIdx, &$naqibName, &$members) {
-                $cells = $this->cells($row);
-
-                if (count($cells) <= max($namaIdx, $jawatanIdx)) {
-                    return;
-                }
-
-                if (strtoupper($cells[$namaIdx] ?? '') === 'NAMA') {
-                    return;
-                }
-
-                $nama    = $cells[$namaIdx] ?? '';
-                $jawatan = strtolower(trim($cells[$jawatanIdx] ?? ''));
-
-                if (empty($nama)) {
-                    return;
-                }
-
-                // Level 05 usrah groups mark the naqib with JAWATAN = "Naqib"
-                if ($jawatan === 'naqib') {
-                    $naqibName = $nama;
-                }
-
-                $members[] = $nama;
-            });
-        });
-
+        // Keep the existing per-member "naqib" / "usrah_label" annotation on
+        // SpiMember in sync too (shown on the main member list/export).
         if (! $naqibName || empty($members)) {
             return;
         }
 
-        // Match members to our DB by exact name and update naqib + usrah_label
         $updated = 0;
 
-        foreach ($members as $nama) {
-            $count = SpiMember::where('nama', $nama)
-                ->update([
-                    'naqib'       => $naqibName,
-                    'usrah_label' => "Usrah {$usrahId}",
-                ]);
+        foreach ($members as $member) {
+            if (empty($member['nama'])) {
+                continue;
+            }
 
-            $updated += $count;
+            $updated += SpiMember::where('nama', $member['nama'])->update([
+                'naqib' => $naqibName,
+                'usrah_label' => $usrahName ?: "Usrah {$usrahId}",
+            ]);
         }
 
         if ($updated > 0) {
             $this->line("    Usrah {$usrahId} (Naqib: {$naqibName}): {$updated} member(s) updated.");
         }
+    }
+
+    /**
+     * Read a labeled field's value from the usrah detail page's form-style
+     * layout: the row whose cell text exactly matches $label (tolerant of a
+     * trailing colon, e.g. "Kawasan:"), then whichever kind of control holds
+     * the value in the next cell — a <select>'s selected option, a
+     * <textarea>, an <input>'s value attribute, or (for read-only fields)
+     * the cell's own plain text.
+     */
+    private function labeledField(Crawler $crawler, string $label): ?string
+    {
+        $needle = strtolower(rtrim($label, ':'));
+        $value  = null;
+
+        $crawler->filter('tr')->each(function (Crawler $row) use ($needle, &$value) {
+            if ($value !== null) {
+                return;
+            }
+
+            $cellTexts = $this->cells($row);
+
+            foreach ($cellTexts as $i => $text) {
+                if (strtolower(rtrim($text, ':')) !== $needle) {
+                    continue;
+                }
+
+                $valueCell = $row->filter('td, th')->eq($i + 1);
+
+                if ($valueCell->count() === 0) {
+                    $value = '';
+
+                    return;
+                }
+
+                $select = $valueCell->filter('select');
+                if ($select->count() > 0) {
+                    $selected = $select->filter('option[selected]');
+                    $option   = $selected->count() > 0 ? $selected : $select->filter('option');
+                    $value    = $option->count() > 0 ? trim($option->first()->text()) : '';
+
+                    return;
+                }
+
+                $textarea = $valueCell->filter('textarea');
+                if ($textarea->count() > 0) {
+                    $value = trim($textarea->first()->text());
+
+                    return;
+                }
+
+                $input = $valueCell->filter('input[type="text"], input:not([type])');
+                if ($input->count() > 0) {
+                    $value = trim($input->first()->attr('value') ?? '');
+
+                    return;
+                }
+
+                $value = trim($cellTexts[$i + 1] ?? '');
+
+                return;
+            }
+        });
+
+        return ($value === null || $value === '') ? null : $value;
+    }
+
+    /**
+     * Parse the "Senarai Ahli-Ahli Usrah" member table on a usrah detail
+     * page (BIL, NAMA, PERINGKAT, TAHAP, JAWATAN, TARIKH SERTAI, NO TEL,
+     * EMAIL — not every column is guaranteed present). Also reports back
+     * whichever member is marked JAWATAN = "Naqib", for levels whose detail
+     * page has no separate labeled Naqib field.
+     *
+     * The header row is found by content (first row containing both NAMA and
+     * JAWATAN), not by table/row position — the real page may have a title
+     * row ("Senarai Ahli-Ahli Usrah - Aktif") above the actual column
+     * headers within the same table.
+     *
+     * @return array{members: array<int, array<string, mixed>>, naqibFromJawatan: ?string}
+     */
+    private function usrahMemberTable(Crawler $crawler): array
+    {
+        $members          = [];
+        $naqibFromJawatan = null;
+
+        $crawler->filter('table')->each(function (Crawler $table) use (&$members, &$naqibFromJawatan) {
+            if (! empty($members)) {
+                return;
+            }
+
+            $idx = null;
+
+            $table->filter('tr')->each(function (Crawler $row) use (&$idx, &$members, &$naqibFromJawatan) {
+                $cells = $this->cells($row);
+
+                if ($idx === null) {
+                    $upper = array_map('strtoupper', $cells);
+
+                    if (in_array('NAMA', $upper, true) && in_array('JAWATAN', $upper, true)) {
+                        $idx = [
+                            'nama' => array_search('NAMA', $upper, true),
+                            'peringkat' => $this->findColIdx($upper, 'PERINGKAT'),
+                            'tahap' => $this->findColIdx($upper, 'TAHAP'),
+                            'jawatan' => array_search('JAWATAN', $upper, true),
+                            'tarikh_sertai' => $this->findColIdx($upper, 'TARIKH SERTAI'),
+                            'no_tel' => $this->findColIdx($upper, 'NO TEL') !== false
+                                ? $this->findColIdx($upper, 'NO TEL')
+                                : $this->findColIdx($upper, 'TEL'),
+                            'email' => $this->findColIdx($upper, 'EMAIL'),
+                        ];
+                    }
+
+                    return;
+                }
+
+                if (empty($cells[0] ?? null) || ! is_numeric($cells[0])) {
+                    return;
+                }
+
+                $get = fn (string $key) => $idx[$key] !== false && isset($cells[$idx[$key]])
+                    ? trim($cells[$idx[$key]])
+                    : null;
+
+                $nama    = $get('nama');
+                $jawatan = $get('jawatan');
+
+                if (empty($nama)) {
+                    return;
+                }
+
+                if ($jawatan && strtolower($jawatan) === 'naqib') {
+                    $naqibFromJawatan = $nama;
+                }
+
+                $members[] = array_filter([
+                    'nama' => $nama,
+                    'peringkat' => $get('peringkat'),
+                    'tahap' => $get('tahap'),
+                    'jawatan' => $jawatan,
+                    'tarikh_sertai' => $get('tarikh_sertai'),
+                    'no_tel' => $get('no_tel'),
+                    'email' => $get('email'),
+                ], fn ($v) => $v !== null && $v !== '');
+            });
+        });
+
+        return ['members' => $members, 'naqibFromJawatan' => $naqibFromJawatan];
     }
 
     // ── Profile scraping ─────────────────────────────────────────────────────

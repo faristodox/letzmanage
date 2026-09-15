@@ -126,9 +126,12 @@
                             @endif
                         </p>
                         <p class="text-xs text-slate-500">
-                            {{ ucfirst($field->type->value) }}
+                            {{ $field->type->label() }}
                             @if ($field->type->isChoice())
                                 &middot; {{ implode(', ', $field->options ?? []) }}
+                            @endif
+                            @if ($field->verify_spi_membership)
+                                &middot; <span class="text-indigo-600">{{ __('Must match a member (SPI)') }}</span>
                             @endif
                         </p>
                     </div>
@@ -166,7 +169,7 @@
                         <x-input-label for="fieldType" :value="__('Type')" />
                         <select wire:model.live="fieldType" id="fieldType" @if ($editingFieldId && $this->hasResponses()) disabled @endif class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-slate-50">
                             @foreach ($fieldTypes as $type)
-                                <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
+                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('fieldType')" class="mt-2" />
@@ -179,6 +182,18 @@
                                 class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-slate-50"></textarea>
                             <x-input-error :messages="$errors->get('fieldOptions')" class="mt-2" />
                         </div>
+                    @endif
+
+                    @if ($fieldType === 'ic_number')
+                        @if ($orgHasSpi)
+                            <label class="mt-4 flex items-center gap-2">
+                                <input type="checkbox" wire:model="fieldVerifySpiMembership" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                <span class="text-sm text-slate-700">{{ __('Must match a registered member (SPI)') }}</span>
+                            </label>
+                            <p class="mt-1 text-xs text-slate-500">{{ __('Rejects the submission unless the IC number belongs to a member in your SPI data.') }}</p>
+                        @else
+                            <p class="mt-4 text-xs text-slate-500">{{ __('Enable SPI membership data for this organization to also verify submitted IC numbers against your member list.') }}</p>
+                        @endif
                     @endif
 
                     <div class="mt-4">
