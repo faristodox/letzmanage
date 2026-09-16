@@ -10,6 +10,7 @@ use App\Http\Controllers\TelegramWebhookController;
 use App\Models\Event;
 use App\Models\EventForm;
 use App\Models\Form;
+use App\Models\Meeting;
 use App\Models\Organization;
 use App\Services\EventFormAnalyticsService;
 use App\Services\EventReportService;
@@ -208,6 +209,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('forms', 'forms.index')->name('forms.index');
 
     Route::view('archive', 'archive.index')->name('archive.index');
+
+    Route::view('meetings', 'meetings.index')->name('meetings.index');
+
+    Route::get('meetings/{meeting}', fn (Meeting $meeting) => view('meetings.show', ['meeting' => $meeting]))
+        ->name('meetings.show')->can('view', 'meeting');
 
     Route::get('forms/{form}/builder', fn (Form $form) => view('forms.builder', ['form' => $form]))
         ->name('forms.builder')->can('update', 'form');

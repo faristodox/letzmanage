@@ -103,6 +103,19 @@
             </li>
         @endcan
 
+        @can('viewAny', App\Models\Meeting::class)
+            <li>
+                <x-nav-link :href="route('meetings.index')" :active="request()->routeIs('meetings.*')" wire:navigate
+                    x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"
+                    :title="'Meetings'">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 {{ request()->routeIs('meetings.*') ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600' }}">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                    </svg>
+                    <span x-show="!($store.sidebar?.collapsed)" class="truncate">{{ __('Meetings') }}</span>
+                </x-nav-link>
+            </li>
+        @endcan
+
         @if (app(\App\Support\CurrentOrganization::class)->get()?->hasSpiEnabled() && auth()->user()->can('view spi data'))
         <li>
             <x-nav-link :href="route('spi-members.index')" :active="request()->routeIs('spi-members.index')" wire:navigate

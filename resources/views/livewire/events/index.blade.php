@@ -63,6 +63,9 @@
                                 <a href="{{ route('events.finances', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Financial') }}</a>
                                 <a href="{{ route('events.report', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Report') }}</a>
                             @endcan
+                            @can('viewAny', App\Models\Meeting::class)
+                                <a href="{{ route('meetings.index', ['event' => $event->id]) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Meetings') }}</a>
+                            @endcan
                             @can('delete', $event)
                                 <button wire:click="confirmDelete({{ $event->id }})" class="text-red-600 hover:text-red-700">{{ __('Delete') }}</button>
                             @endcan

@@ -47,4 +47,83 @@ document.addEventListener('alpine:init', () => {
             link.click();
         },
     }));
+
+    // Live meeting recording (Meetings > New Meeting > Record tab). Produces
+    // an audio Blob client-side, then feeds it into the exact same Livewire
+    // $file property / save() method as the Upload tab's plain <input
+    // type=file> — one processing pipeline, two ways to get the audio in.
+    // Chrome/Firefox/Edge record audio/webm;codecs=opus, which Google
+    // Speech-to-Text supports directly; Safari only records audio/mp4 (AAC),
+    // which it doesn't — those users are pointed at the Upload tab instead.
+    Alpine.data('meetingRecorder', () => ({
+        recording: false,
+        uploading: false,
+        elapsedSeconds: 0,
+        error: null,
+        mediaRecorder: null,
+        chunks: [],
+        mimeType: null,
+        timer: null,
+
+        get formattedElapsed() {
+            const m = Math.floor(this.elapsedSeconds / 60).toString().padStart(2, '0');
+            const s = (this.elapsedSeconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        },
+
+        async start() {
+            this.error = null;
+            this.chunks = [];
+            this.elapsedSeconds = 0;
+
+            const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+            this.mimeType = candidates.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type)) || null;
+
+            if (!this.mimeType) {
+                this.error = 'Live recording isn\'t supported in this browser. Please use Chrome, Firefox, or Edge — or use the Upload tab instead.';
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.mediaRecorder = new MediaRecorder(stream, { mimeType: this.mimeType });
+                this.mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) this.chunks.push(e.data);
+                };
+                this.mediaRecorder.start();
+                this.recording = true;
+                this.timer = setInterval(() => this.elapsedSeconds++, 1000);
+            } catch (e) {
+                this.error = 'Could not access your microphone. Please allow microphone access and try again.';
+            }
+        },
+
+        stop() {
+            if (!this.mediaRecorder) return;
+
+            clearInterval(this.timer);
+            this.recording = false;
+            this.uploading = true;
+
+            this.mediaRecorder.addEventListener('stop', () => {
+                this.mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+
+                const extension = this.mimeType.includes('ogg') ? 'ogg' : 'webm';
+                const file = new File(this.chunks, `recording.${extension}`, { type: this.mimeType });
+                const duration = this.elapsedSeconds;
+
+                this.$wire.set('recordedDurationSeconds', duration).then(() => {
+                    this.$wire.upload(
+                        'file',
+                        file,
+                        () => { this.uploading = false; },
+                        () => { this.uploading = false; this.error = 'Upload failed. Please try again.'; },
+                        () => {},
+                    );
+                });
+            }, { once: true });
+
+            this.mediaRecorder.stop();
+        },
+    }));
 });
