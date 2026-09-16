@@ -348,10 +348,13 @@
 
                         @can('update', $viewingEvent)
                             @if ($viewingEvent->registrationForm)
-                                <div class="mt-6 flex justify-end">
+                                <div class="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
                                     <a href="{{ route('event-forms.builder', $viewingEvent->registrationForm) }}" wire:navigate class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                                         {{ __('Manage Event →') }}
                                     </a>
+                                    @if ($viewingEvent->registrationForm->status->value !== 'published')
+                                        <x-primary-button type="button" wire:click="publishEvent">{{ __('Publish') }}</x-primary-button>
+                                    @endif
                                 </div>
                             @endif
                         @endcan

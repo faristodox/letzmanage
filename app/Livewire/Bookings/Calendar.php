@@ -4,12 +4,14 @@ namespace App\Livewire\Bookings;
 
 use App\Enums\BookingStatus;
 use App\Enums\CalendarFilterType;
+use App\Enums\EventFormStatus;
 use App\Enums\OfficeSpaceStatus;
 use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
 use App\Models\Event;
 use App\Models\OfficeSpace;
 use App\Services\BookingService;
+use App\Services\EventCalendarSyncService;
 use App\Services\EventCreationService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -244,6 +246,19 @@ class Calendar extends Component
         $this->showModal = false;
         $this->reset(['title', 'start_time', 'end_time']);
         session()->flash('status', __('Booking submitted successfully.'));
+    }
+
+    public function publishEvent(EventCalendarSyncService $calendarSync): void
+    {
+        $event = Event::with('registrationForm')->findOrFail($this->viewEventId);
+        $this->authorize('update', $event);
+
+        if ($event->registrationForm) {
+            $event->registrationForm->update(['status' => EventFormStatus::Published]);
+            $calendarSync->reconcile($event);
+        }
+
+        session()->flash('status', __('Event published.'));
     }
 
     public function saveEvent(EventCreationService $eventCreation): void
