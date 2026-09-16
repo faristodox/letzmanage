@@ -47,9 +47,12 @@ class GoogleSpeechToTextService
     }
 
     /**
+     * @param  array<int, string>  $alternativeLanguageCodes  Secondary languages
+     *         Google may recognize within the same audio (e.g. English words
+     *         mixed into otherwise-Malay speech) — up to 3 per Google's limit.
      * @return string The operation name to poll via checkOperationStatus().
      */
-    public function submitLongRunningRecognize(string $gcsUri, string $encoding, string $languageCode): string
+    public function submitLongRunningRecognize(string $gcsUri, string $encoding, string $languageCode, array $alternativeLanguageCodes = []): string
     {
         $result = Http::withToken($this->auth->getAccessToken())
             ->timeout(30)
@@ -57,8 +60,15 @@ class GoogleSpeechToTextService
                 'config' => [
                     'encoding' => $encoding,
                     'languageCode' => $languageCode,
+                    ...($alternativeLanguageCodes ? ['alternativeLanguageCodes' => array_values($alternativeLanguageCodes)] : []),
                     'enableAutomaticPunctuation' => true,
-                    'model' => 'latest_long',
+                    // Deliberately no 'model' field: 'latest_long' (this app's
+                    // original choice for long-form audio quality) is only
+                    // supported for a subset of languages and 400s outright
+                    // for others (confirmed: rejected for ms-MY) — omitting
+                    // it lets Google pick its own default per language,
+                    // trading a little quality on languages that DO support
+                    // latest_long for working at all on ones that don't.
                 ],
                 'audio' => [
                     'uri' => $gcsUri,

@@ -58,6 +58,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('meetingRecorder', () => ({
         recording: false,
         uploading: false,
+        uploaded: false,
         elapsedSeconds: 0,
         error: null,
         mediaRecorder: null,
@@ -73,6 +74,7 @@ document.addEventListener('alpine:init', () => {
 
         async start() {
             this.error = null;
+            this.uploaded = false;
             this.chunks = [];
             this.elapsedSeconds = 0;
 
@@ -116,7 +118,7 @@ document.addEventListener('alpine:init', () => {
                     this.$wire.upload(
                         'file',
                         file,
-                        () => { this.uploading = false; },
+                        () => { this.uploading = false; this.uploaded = true; },
                         () => { this.uploading = false; this.error = 'Upload failed. Please try again.'; },
                         () => {},
                     );

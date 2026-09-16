@@ -51,6 +51,10 @@ return [
         'credentials_path' => env('GOOGLE_SPEECH_CREDENTIALS_PATH', storage_path('app/google/speech-service-account.json')),
         'bucket' => env('GCS_BUCKET'),
         'language_code' => env('GOOGLE_SPEECH_LANGUAGE_CODE', 'en-US'),
+        // Secondary languages Google may recognize within the same audio —
+        // e.g. English words/phrases mixed into otherwise-Malay speech
+        // ("code-switching"). Comma-separated BCP-47 codes, max 3 per Google.
+        'alternative_language_codes' => array_values(array_filter(explode(',', (string) env('GOOGLE_SPEECH_ALTERNATE_LANGUAGE_CODES', '')))),
     ],
 
     'gemini' => [

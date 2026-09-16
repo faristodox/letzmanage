@@ -85,6 +85,7 @@ class SubmitMeetingForTranscriptionJob implements ShouldQueue
                 "gs://".config('services.google_speech.bucket')."/{$objectName}",
                 $encoding,
                 config('services.google_speech.language_code'),
+                config('services.google_speech.alternative_language_codes'),
             );
 
             $meeting->update([

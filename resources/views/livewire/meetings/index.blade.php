@@ -126,9 +126,7 @@
                                 <p class="mt-2 text-xs text-slate-400">{{ __('Works best in Chrome, Firefox, or Edge. Safari isn\'t supported for live recording — use the Upload tab instead.') }}</p>
                                 <p x-show="error" x-text="error" class="mt-2 text-sm text-red-600"></p>
 
-                                <template x-if="$wire.file">
-                                    <p class="mt-2 text-sm text-emerald-600">{{ __('Recording ready — click Create below.') }}</p>
-                                </template>
+                                <p x-show="uploaded" class="mt-2 text-sm text-emerald-600">{{ __('Recording ready — click Create below.') }}</p>
                             </div>
                         @else
                             <div>
