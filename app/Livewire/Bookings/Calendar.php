@@ -322,10 +322,6 @@ class Calendar extends Component
                             $query->whereNull('end_date')->where('start_date', '>=', $gridStart);
                         });
                 })
-                // Matches EventCalendarSyncService's "isLive" definition, so an
-                // event appears here exactly when it would also be synced to
-                // Google Calendar — one consistent publish gate everywhere.
-                ->whereHas('registrationForm', fn ($query) => $query->where('status', EventFormStatus::Published))
                 ->with('registrationForm')
                 ->orderBy('start_date')
                 ->get(), $gridStart, $gridEnd);
