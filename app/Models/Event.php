@@ -142,6 +142,14 @@ class Event extends Model implements GoogleCalendarSyncable
                 ? $this->combineDateAndTime($endDate, $this->end_time)
                 : $start->copy()->addHour();
 
+            // An end time at or before the start, with no explicit end_date
+            // override, means the event actually runs past midnight — roll
+            // to the next calendar day rather than sending Google an
+            // end-before-start range (rejected with "timeRangeEmpty").
+            if ($end->lte($start)) {
+                $end = $end->copy()->addDay();
+            }
+
             $schedule = [
                 'start' => ['dateTime' => $start->toRfc3339String(), 'timeZone' => config('app.timezone')],
                 'end' => ['dateTime' => $end->toRfc3339String(), 'timeZone' => config('app.timezone')],
