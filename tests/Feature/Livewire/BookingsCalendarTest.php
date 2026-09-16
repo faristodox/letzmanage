@@ -69,6 +69,71 @@ class BookingsCalendarTest extends TestCase
         ]);
     }
 
+    public function test_selecting_all_office_spaces_shows_bookings_from_every_space(): void
+    {
+        $branch = Branch::factory()->create();
+        $spaceA = OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active, 'name' => 'Dewan Utama']);
+        $spaceB = OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active, 'name' => 'Bilik Studio']);
+
+        $admin = User::factory()->create(['branch_id' => $branch->id]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        $bookingA = Booking::factory()->create([
+            'branch_id' => $branch->id,
+            'space_id' => $spaceA->id,
+            'status' => BookingStatus::Approved,
+            'title' => 'Meeting A',
+            'start_time' => now()->addDays(2)->setTime(9, 0),
+            'end_time' => now()->addDays(2)->setTime(10, 0),
+        ]);
+        $bookingB = Booking::factory()->create([
+            'branch_id' => $branch->id,
+            'space_id' => $spaceB->id,
+            'status' => BookingStatus::Approved,
+            'title' => 'Meeting B',
+            'start_time' => now()->addDays(2)->setTime(11, 0),
+            'end_time' => now()->addDays(2)->setTime(12, 0),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(Calendar::class)
+            ->set('space_id', null)
+            ->assertSee($bookingA->title)
+            ->assertSee($bookingB->title)
+            ->assertSee($spaceA->name)
+            ->assertSee($spaceB->name);
+    }
+
+    public function test_can_create_a_booking_for_a_specific_space_while_all_spaces_are_selected(): void
+    {
+        $branch = Branch::factory()->create();
+        $spaceA = OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+        $spaceB = OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        app(SystemSettingService::class)->setApprovalMode(ApprovalMode::Auto, $branch->id);
+
+        $staff = User::factory()->create(['branch_id' => $branch->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $date = now()->addDays(5)->format('Y-m-d');
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('space_id', null)
+            ->call('openCreate', $date)
+            ->set('bookingSpaceId', $spaceB->id)
+            ->set('title', 'Planning session')
+            ->set('start_time', '11:00')
+            ->set('end_time', '12:00')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('bookings', [
+            'space_id' => $spaceB->id,
+            'title' => 'Planning session',
+        ]);
+    }
+
     public function test_user_without_create_permission_is_forbidden(): void
     {
         $branch = Branch::factory()->create();

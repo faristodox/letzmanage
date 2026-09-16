@@ -16,11 +16,14 @@
                 <div class="w-full sm:w-64">
                     <x-input-label for="space_id" :value="__('Office Space')" />
                     <select wire:model.live="space_id" id="space_id" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        @forelse ($spaces as $space)
-                            <option value="{{ $space->id }}">{{ $space->name }}</option>
-                        @empty
+                        @if ($spaces->isNotEmpty())
+                            <option value="">{{ __('All Office Spaces') }}</option>
+                            @foreach ($spaces as $space)
+                                <option value="{{ $space->id }}">{{ $space->name }}</option>
+                            @endforeach
+                        @else
                             <option value="">{{ __('No office spaces available') }}</option>
-                        @endforelse
+                        @endif
                     </select>
                 </div>
             @endif
@@ -58,7 +61,7 @@
                 <div class="min-h-[100px] border-b border-r border-slate-100 p-2 {{ $isCurrentMonth ? 'bg-white' : 'bg-slate-50' }}">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium {{ $isCurrentMonth ? 'text-slate-700' : 'text-slate-400' }}">{{ $day->format('j') }}</span>
-                        @if ($isCurrentMonth && ! $isPast && ($space_id || $canViewEvents))
+                        @if ($isCurrentMonth && ! $isPast && ($spaces->isNotEmpty() || $canViewEvents))
                             <button wire:click="openCreate('{{ $key }}')" class="text-xs font-semibold text-indigo-500 hover:text-indigo-700" title="{{ __('New booking or event') }}">+</button>
                         @endif
                     </div>
@@ -67,8 +70,8 @@
                         @foreach ($dayBookings as $booking)
                             <div wire:click="viewBooking({{ $booking->id }})"
                                  class="cursor-pointer truncate rounded px-1.5 py-0.5 text-[11px] hover:ring-1 hover:ring-inset {{ $booking->status->value === 'approved' ? 'bg-emerald-50 text-emerald-700 hover:ring-emerald-600/30' : 'bg-amber-50 text-amber-700 hover:ring-amber-600/30' }}"
-                                 title="{{ $booking->requesterName() }} ({{ ucfirst($booking->status->value) }}) {{ $booking->start_time->format('H:i') }}-{{ $booking->end_time->format('H:i') }}">
-                                {{ $booking->start_time->format('H:i') }} {{ $booking->title ?: $booking->requesterName() }}
+                                 title="{{ $booking->requesterName() }} ({{ ucfirst($booking->status->value) }}) {{ $booking->start_time->format('H:i') }}-{{ $booking->end_time->format('H:i') }}{{ $showingAllSpaces ? ' — '.$booking->space->name : '' }}">
+                                {{ $booking->start_time->format('H:i') }} {{ $booking->title ?: $booking->requesterName() }}{{ $showingAllSpaces ? ' ('.$booking->space->name.')' : '' }}
                             </div>
                         @endforeach
 
@@ -104,7 +107,7 @@
                         {{ $modalTab === 'event' ? __('New Event') : __('New Booking') }} — {{ \Illuminate\Support\Carbon::parse($date)->format('D, j M Y') }}
                     </h2>
 
-                    @if ($canViewEvents && $space_id)
+                    @if ($canViewEvents && $spaces->isNotEmpty())
                         <div class="mt-4 flex gap-1 rounded-lg bg-slate-100 p-1">
                             <button type="button" wire:click="$set('modalTab', 'event')"
                                 class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $modalTab === 'event' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
@@ -172,6 +175,16 @@
                                     {{ $errorMessage }}
                                 </div>
                             @endif
+
+                            <div>
+                                <x-input-label for="modal_booking_space" :value="__('Office Space')" />
+                                <select wire:model="bookingSpaceId" id="modal_booking_space" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @foreach ($spaces as $space)
+                                        <option value="{{ $space->id }}">{{ $space->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('bookingSpaceId')" class="mt-2" />
+                            </div>
 
                             <div>
                                 <x-input-label for="modal_title" :value="__('Title (optional)')" />

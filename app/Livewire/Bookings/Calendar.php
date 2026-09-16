@@ -22,6 +22,8 @@ class Calendar extends Component
 {
     public ?int $space_id = null;
 
+    public ?int $bookingSpaceId = null;
+
     public string $month;
 
     public string $type = 'all';
@@ -74,14 +76,21 @@ class Calendar extends Component
 
         $this->month = now()->format('Y-m');
         $this->canViewEvents = auth()->user()->can('viewAny', Event::class);
+        $this->space_id = $this->firstAvailableSpaceId();
+    }
 
-        $firstSpace = OfficeSpace::query()
+    /**
+     * The calendar's Office Space filter defaults to one specific space (not
+     * "All") to match prior behavior, but is otherwise independent of which
+     * space a new booking targets — see $bookingSpaceId, set in openCreate().
+     */
+    private function firstAvailableSpaceId(): ?int
+    {
+        return OfficeSpace::query()
             ->visibleTo(auth()->user())
             ->where('status', OfficeSpaceStatus::Active)
             ->orderBy('name')
-            ->first();
-
-        $this->space_id = $firstSpace?->id;
+            ->value('id');
     }
 
     public function previousMonth(): void
@@ -102,6 +111,7 @@ class Calendar extends Component
         $this->title = '';
         $this->start_time = '09:00';
         $this->end_time = '10:00';
+        $this->bookingSpaceId = $this->space_id ?: $this->firstAvailableSpaceId();
         $this->reset(['eventTitle', 'eventStartTime', 'eventEndDate', 'eventEndTime', 'eventLocation']);
         $this->eventStartDate = $date;
         $this->errorMessage = null;
@@ -209,13 +219,13 @@ class Calendar extends Component
         $this->authorize('create', Booking::class);
 
         $this->validate([
-            'space_id' => ['required', 'integer', 'exists:office_spaces,id'],
+            'bookingSpaceId' => ['required', 'integer', 'exists:office_spaces,id'],
             'title' => ['nullable', 'string', 'max:255'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ]);
 
-        $space = OfficeSpace::findOrFail($this->space_id);
+        $space = OfficeSpace::findOrFail($this->bookingSpaceId);
 
         $start = Carbon::parse("{$this->date} {$this->start_time}");
         $end = Carbon::parse("{$this->date} {$this->end_time}");
@@ -294,15 +304,25 @@ class Calendar extends Component
 
         $type = CalendarFilterType::from($this->type);
 
+        $spaces = OfficeSpace::query()
+            ->visibleTo(auth()->user())
+            ->where('status', OfficeSpaceStatus::Active)
+            ->orderBy('name')
+            ->get();
+
         $bookings = collect();
 
-        if ($type !== CalendarFilterType::Event && $this->space_id) {
+        if ($type !== CalendarFilterType::Event && $spaces->isNotEmpty()) {
             $bookings = Booking::query()
-                ->where('space_id', $this->space_id)
+                ->when(
+                    $this->space_id,
+                    fn ($query) => $query->where('space_id', $this->space_id),
+                    fn ($query) => $query->whereIn('space_id', $spaces->pluck('id')),
+                )
                 ->whereIn('status', [BookingStatus::Approved, BookingStatus::Pending])
                 ->where('start_time', '<=', $gridEnd)
                 ->where('end_time', '>=', $gridStart)
-                ->with('user')
+                ->with(['user', 'space'])
                 ->orderBy('start_time')
                 ->get()
                 ->groupBy(fn (Booking $booking) => $booking->start_time->format('Y-m-d'));
@@ -340,11 +360,8 @@ class Calendar extends Component
             'eventsByDay' => $events,
             'viewingBooking' => $this->viewBookingId ? Booking::with(['user', 'space'])->find($this->viewBookingId) : null,
             'viewingEvent' => $this->viewEventId ? Event::with('registrationForm')->find($this->viewEventId) : null,
-            'spaces' => OfficeSpace::query()
-                ->visibleTo(auth()->user())
-                ->where('status', OfficeSpaceStatus::Active)
-                ->orderBy('name')
-                ->get(),
+            'spaces' => $spaces,
+            'showingAllSpaces' => ! $this->space_id,
         ]);
     }
 
