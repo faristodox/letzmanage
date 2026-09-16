@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
+use App\Enums\EventStatus;
 use App\Models\Event;
 use App\Models\EventForm;
 
@@ -23,7 +24,7 @@ class EventCreationService
         $event = Event::create([
             ...$attributes,
             'slug' => Event::uniqueSlug($attributes['title']),
-            'status' => EventFormStatus::Draft,
+            'status' => EventStatus::Draft,
             'created_by' => auth()->id(),
         ]);
 

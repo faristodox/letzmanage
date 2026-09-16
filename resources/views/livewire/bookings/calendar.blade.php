@@ -337,13 +337,11 @@
                                     <span>{{ $viewingEvent->description }}</span>
                                 </div>
                             @endif
-                            @if ($viewingEvent->registrationForm)
-                                <div>
-                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $viewingEvent->registrationForm->status->value === 'published' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : ($viewingEvent->registrationForm->status->value === 'closed' ? 'bg-amber-50 text-amber-700 ring-amber-600/20' : 'bg-slate-100 text-slate-600 ring-slate-500/10') }}">
-                                        {{ ucfirst($viewingEvent->registrationForm->status->value) }}
-                                    </span>
-                                </div>
-                            @endif
+                            <div>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $viewingEvent->status->value === 'published' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : ($viewingEvent->status->value === 'closed' ? 'bg-amber-50 text-amber-700 ring-amber-600/20' : 'bg-slate-100 text-slate-600 ring-slate-500/10') }}">
+                                    {{ ucfirst($viewingEvent->status->value) }}
+                                </span>
+                            </div>
                         </div>
 
                         @can('update', $viewingEvent)
@@ -352,7 +350,7 @@
                                     <a href="{{ route('event-forms.builder', $viewingEvent->registrationForm) }}" wire:navigate class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                                         {{ __('Manage Event →') }}
                                     </a>
-                                    @if ($viewingEvent->registrationForm->status->value !== 'published')
+                                    @if ($viewingEvent->status->value !== 'published')
                                         <x-primary-button type="button" wire:click="publishEvent">{{ __('Publish') }}</x-primary-button>
                                     @endif
                                 </div>

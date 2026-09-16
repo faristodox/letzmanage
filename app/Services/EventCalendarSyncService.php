@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\EventFormStatus;
+use App\Enums\EventStatus;
 use App\Jobs\Concerns\ResolvesGoogleCalendarCredentialHolder;
 use App\Jobs\SyncEventToGoogleCalendarJob;
 use App\Models\Event;
@@ -11,11 +11,12 @@ use Throwable;
 
 /**
  * Keeps an Event's Google Calendar sync in step with whether it's currently
- * "live": has a start_date and its registration form is Published. Call
- * reconcile() after any save that could change either of those — the
- * registration form's publish toggle, or the event's own date/location
- * settings — rather than tracking publish/unpublish transitions separately
- * at each call site.
+ * "live": has a start_date and the Event's own status is Published — the
+ * registration form's status is a separate concern (whether sign-ups are
+ * open) and has no bearing on calendar sync. Call reconcile() after any
+ * save that could change either input (the event's status, or its own
+ * date/location settings) rather than tracking transitions separately at
+ * each call site.
  */
 class EventCalendarSyncService
 {
@@ -25,10 +26,7 @@ class EventCalendarSyncService
 
     public function reconcile(Event $event): void
     {
-        $event->loadMissing('registrationForm');
-
-        $isLive = $event->start_date !== null
-            && $event->registrationForm?->status === EventFormStatus::Published;
+        $isLive = $event->start_date !== null && $event->status === EventStatus::Published;
 
         if (! $isLive && ! $event->google_event_id) {
             // Nothing synced and nothing to sync — skip the queue round-trip.

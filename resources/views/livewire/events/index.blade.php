@@ -36,18 +36,16 @@
                     <tr wire:key="event-{{ $event->id }}" class="hover:bg-slate-50">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $event->title }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
-                            @if ($registrationForm)
-                                @php
-                                    $statusColors = [
-                                        'draft' => 'bg-slate-100 text-slate-600 ring-slate-500/10',
-                                        'published' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-                                        'closed' => 'bg-amber-50 text-amber-700 ring-amber-600/20',
-                                    ];
-                                @endphp
-                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $statusColors[$registrationForm->status->value] }}">
-                                    {{ ucfirst($registrationForm->status->value) }}
-                                </span>
-                            @endif
+                            @php
+                                $statusColors = [
+                                    'draft' => 'bg-slate-100 text-slate-600 ring-slate-500/10',
+                                    'published' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+                                    'closed' => 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                                ];
+                            @endphp
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $statusColors[$event->status->value] }}">
+                                {{ ucfirst($event->status->value) }}
+                            </span>
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $registrationForm?->responses_count ?? 0 }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $event->created_at->format('d M Y') }}</td>

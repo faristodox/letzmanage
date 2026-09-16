@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use App\Contracts\GoogleCalendarSyncable;
-use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
+use App\Enums\EventStatus;
 use App\Enums\EventTransactionType;
 use App\Models\Concerns\BelongsToOrganization;
 use Carbon\Carbon;
@@ -25,7 +25,7 @@ class Event extends Model implements GoogleCalendarSyncable
     protected function casts(): array
     {
         return [
-            'status' => EventFormStatus::class,
+            'status' => EventStatus::class,
             'start_date' => 'date',
             'end_date' => 'date',
         ];

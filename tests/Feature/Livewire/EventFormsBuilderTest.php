@@ -4,6 +4,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Enums\EventFormFieldType;
 use App\Enums\EventFormStatus;
+use App\Enums\EventStatus;
 use App\Enums\RoleName;
 use App\Jobs\SyncEventToGoogleCalendarJob;
 use App\Livewire\EventForms\Builder;
@@ -285,8 +286,11 @@ class EventFormsBuilderTest extends TestCase
         return $admin;
     }
 
-    public function test_publishing_the_registration_form_with_a_start_date_queues_a_calendar_sync(): void
+    public function test_publishing_the_registration_form_does_not_queue_a_calendar_sync(): void
     {
+        // Registration form status only governs whether sign-ups are open —
+        // calendar sync is driven by the Event's own status (see below), a
+        // deliberate separation of concerns.
         $organization = Organization::factory()->create();
         $event = Event::factory()->for($organization)->create(['start_date' => '2026-11-20']);
         $eventForm = EventForm::factory()->for($event)->create();
@@ -297,12 +301,29 @@ class EventFormsBuilderTest extends TestCase
             ->test(Builder::class, ['eventForm' => $eventForm])
             ->set('status', EventFormStatus::Published->value)
             ->call('saveFormSettings')
+            ->assertHasNoErrors();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_publishing_the_event_with_a_start_date_queues_a_calendar_sync(): void
+    {
+        $organization = Organization::factory()->create();
+        $event = Event::factory()->for($organization)->create(['start_date' => '2026-11-20']);
+        $eventForm = EventForm::factory()->for($event)->create();
+
+        Queue::fake();
+
+        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
+            ->test(Builder::class, ['eventForm' => $eventForm])
+            ->set('eventStatus', EventStatus::Published->value)
+            ->call('saveEventSettings')
             ->assertHasNoErrors();
 
         Queue::assertPushed(SyncEventToGoogleCalendarJob::class, fn ($job) => $job->eventId === $eventForm->event_id && $job->action === 'upsert');
     }
 
-    public function test_publishing_the_registration_form_without_a_start_date_does_not_queue_a_sync(): void
+    public function test_publishing_the_event_without_a_start_date_does_not_queue_a_sync(): void
     {
         $organization = Organization::factory()->create();
         $event = Event::factory()->for($organization)->create();
@@ -312,55 +333,38 @@ class EventFormsBuilderTest extends TestCase
 
         Livewire::actingAs($this->adminForCalendarSyncTests($organization))
             ->test(Builder::class, ['eventForm' => $eventForm])
-            ->set('status', EventFormStatus::Published->value)
-            ->call('saveFormSettings')
+            ->set('eventStatus', EventStatus::Published->value)
+            ->call('saveEventSettings')
             ->assertHasNoErrors();
 
         Queue::assertNothingPushed();
     }
 
-    public function test_unpublishing_a_previously_synced_event_queues_a_delete_sync(): void
+    public function test_closing_a_previously_synced_event_queues_a_delete_sync(): void
     {
         $organization = Organization::factory()->create();
-        $event = Event::factory()->for($organization)->create([
+        $event = Event::factory()->published()->for($organization)->create([
             'start_date' => '2026-11-20',
             'google_event_id' => 'gcal-event-1',
         ]);
-        $eventForm = EventForm::factory()->published()->for($event)->create();
+        $eventForm = EventForm::factory()->for($event)->create();
 
         Queue::fake();
 
         Livewire::actingAs($this->adminForCalendarSyncTests($organization))
             ->test(Builder::class, ['eventForm' => $eventForm])
-            ->set('status', EventFormStatus::Closed->value)
-            ->call('saveFormSettings')
+            ->set('eventStatus', EventStatus::Closed->value)
+            ->call('saveEventSettings')
             ->assertHasNoErrors();
 
         Queue::assertPushed(SyncEventToGoogleCalendarJob::class, fn ($job) => $job->eventId === $eventForm->event_id && $job->action === 'delete');
     }
 
-    public function test_publishing_a_feedback_form_does_not_queue_a_calendar_sync(): void
-    {
-        $organization = Organization::factory()->create();
-        $event = Event::factory()->for($organization)->create(['start_date' => '2026-11-20']);
-        $eventForm = EventForm::factory()->feedback()->for($event)->create();
-
-        Queue::fake();
-
-        Livewire::actingAs($this->adminForCalendarSyncTests($organization))
-            ->test(Builder::class, ['eventForm' => $eventForm])
-            ->set('status', EventFormStatus::Published->value)
-            ->call('saveFormSettings')
-            ->assertHasNoErrors();
-
-        Queue::assertNothingPushed();
-    }
-
     public function test_saving_event_settings_while_published_queues_a_sync(): void
     {
         $organization = Organization::factory()->create();
-        $event = Event::factory()->for($organization)->create();
-        $eventForm = EventForm::factory()->published()->for($event)->create();
+        $event = Event::factory()->published()->for($organization)->create();
+        $eventForm = EventForm::factory()->for($event)->create();
 
         Queue::fake();
 

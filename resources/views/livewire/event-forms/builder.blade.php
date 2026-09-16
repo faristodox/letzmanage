@@ -131,6 +131,17 @@
             </div>
 
             <div>
+                <x-input-label for="eventStatus" :value="__('Status')" />
+                <p class="mt-0.5 text-xs text-slate-400">{{ __('Controls whether this event is live — shown on the calendar and synced to Google Calendar. Separate from the registration form\'s own status below.') }}</p>
+                <select wire:model="eventStatus" id="eventStatus" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    @foreach ($eventStatuses as $eventStatusOption)
+                        <option value="{{ $eventStatusOption->value }}">{{ ucfirst($eventStatusOption->value) }}</option>
+                    @endforeach
+                </select>
+                <x-input-error :messages="$errors->get('eventStatus')" class="mt-2" />
+            </div>
+
+            <div>
                 <x-input-label for="banner" :value="__('Banner Image (optional)')" />
                 <p class="mt-0.5 text-xs text-slate-400">
                     {{ __('Recommended size: 1200×400px (3:1 ratio), JPG or PNG, max 2MB. It appears above the title on the public pages.') }}
@@ -165,6 +176,9 @@
         <h2 class="text-sm font-semibold text-slate-900">
             {{ $isFeedbackForm ? __('Feedback Survey Settings') : __('Registration Form Settings') }}
         </h2>
+        @unless ($isFeedbackForm)
+            <p class="mt-0.5 text-xs text-slate-500">{{ __('Controls whether people can currently register — separate from the event\'s own status above.') }}</p>
+        @endunless
 
         <form wire:submit="saveFormSettings" class="mt-4 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

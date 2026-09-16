@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\EventFormStatus;
+use App\Enums\EventStatus;
 use App\Models\Event;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -20,12 +20,12 @@ class EventFactory extends Factory
             'title' => $title,
             'slug' => Str::slug($title).'-'.fake()->unique()->numberBetween(1, 100000),
             'description' => fake()->optional()->paragraph(),
-            'status' => EventFormStatus::Draft,
+            'status' => EventStatus::Draft,
         ];
     }
 
     public function published(): static
     {
-        return $this->state(['status' => EventFormStatus::Published]);
+        return $this->state(['status' => EventStatus::Published]);
     }
 }

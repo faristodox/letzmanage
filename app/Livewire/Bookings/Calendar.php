@@ -4,7 +4,7 @@ namespace App\Livewire\Bookings;
 
 use App\Enums\BookingStatus;
 use App\Enums\CalendarFilterType;
-use App\Enums\EventFormStatus;
+use App\Enums\EventStatus;
 use App\Enums\OfficeSpaceStatus;
 use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
@@ -250,13 +250,11 @@ class Calendar extends Component
 
     public function publishEvent(EventCalendarSyncService $calendarSync): void
     {
-        $event = Event::with('registrationForm')->findOrFail($this->viewEventId);
+        $event = Event::findOrFail($this->viewEventId);
         $this->authorize('update', $event);
 
-        if ($event->registrationForm) {
-            $event->registrationForm->update(['status' => EventFormStatus::Published]);
-            $calendarSync->reconcile($event);
-        }
+        $event->update(['status' => EventStatus::Published]);
+        $calendarSync->reconcile($event);
 
         session()->flash('status', __('Event published.'));
     }
