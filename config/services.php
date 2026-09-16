@@ -55,7 +55,12 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-1.5-flash'),
+        // 'gemini-flash-latest' is a self-updating alias to Google's current
+        // recommended flash model, rather than a pinned version — Google
+        // deprecates specific version numbers quickly (2.0 already dead as
+        // of mid-2026, 2.5 Pro dying October 2026), so pinning one here
+        // would silently break in a few months.
+        'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
     ],
 
     'spi' => [

@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Services;
+
+use App\Exceptions\MeetingNotConfiguredException;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
+
+/**
+ * Summarizes a meeting transcript into a structured Minutes of Meeting via
+ * the Gemini API. Plain HTTP, no SDK — matching this app's other Google
+ * service clients. Uses its own API key (config('services.gemini.*')), not
+ * the service-account credentials GoogleServiceAccountAuthService issues —
+ * Gemini's Developer API authenticates via a simple key, no JWT exchange.
+ */
+class GeminiSummaryService
+{
+    private const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/';
+
+    public function summarize(string $transcript, string $meetingTitle): string
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        if (! $apiKey) {
+            throw new MeetingNotConfiguredException('Meeting transcription is not set up yet — the Gemini API key is missing on the server.');
+        }
+
+        $model = config('services.gemini.model');
+
+        $result = Http::timeout(60)
+            ->post(self::BASE_URL."models/{$model}:generateContent?key={$apiKey}", [
+                'contents' => [
+                    ['parts' => [['text' => $this->buildPrompt($transcript, $meetingTitle)]]],
+                ],
+            ]);
+
+        if ($result->failed()) {
+            throw new RuntimeException('Gemini summarization failed: '.$result->body());
+        }
+
+        $text = $result->json('candidates.0.content.parts.0.text');
+
+        if (! $text) {
+            throw new RuntimeException('Gemini returned no usable content: '.$result->body());
+        }
+
+        return $text;
+    }
+
+    private function buildPrompt(string $transcript, string $meetingTitle): string
+    {
+        return <<<PROMPT
+        Summarize the following meeting transcript into a structured Minutes of Meeting. Use these sections, in this order: Title, Date (only if mentioned in the transcript, otherwise omit), Attendees (only names identifiable from the transcript), Key Discussion Points, Decisions Made, Action Items (owner and item), Next Steps. Output as plain readable text, no markdown formatting symbols.
+
+        Meeting title: {$meetingTitle}
+
+        Transcript:
+        {$transcript}
+        PROMPT;
+    }
+}
