@@ -46,6 +46,11 @@ class Event extends Model implements GoogleCalendarSyncable
         return $this->hasOne(EventForm::class)->where('type', EventFormType::Feedback);
     }
 
+    public function meetings(): HasMany
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
     public function transactions(): HasMany
     {
         return $this->hasMany(EventTransaction::class)->orderByDesc('transaction_date');

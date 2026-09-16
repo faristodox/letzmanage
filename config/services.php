@@ -47,6 +47,17 @@ return [
         'redirect_uri_individual' => env('GOOGLE_CALENDAR_REDIRECT_URI_INDIVIDUAL'),
     ],
 
+    'google_speech' => [
+        'credentials_path' => env('GOOGLE_SPEECH_CREDENTIALS_PATH', storage_path('app/google/speech-service-account.json')),
+        'bucket' => env('GCS_BUCKET'),
+        'language_code' => env('GOOGLE_SPEECH_LANGUAGE_CODE', 'en-US'),
+    ],
+
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-1.5-flash'),
+    ],
+
     'spi' => [
         'username' => env('SPI_USERNAME'),
         'password' => env('SPI_PASSWORD'),
