@@ -35,7 +35,7 @@ new class extends Component
         </h2>
 
         <p class="mt-1 text-sm text-slate-500">
-            {{ __('Connect your own Google account so your approved bookings appear on your calendar.') }}
+            {{ __('Connect your own Google account so the events you created appear on your calendar.') }}
         </p>
     </header>
 

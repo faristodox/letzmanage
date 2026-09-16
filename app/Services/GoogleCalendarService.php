@@ -11,8 +11,8 @@ use RuntimeException;
  * Event CRUD against the Google Calendar v3 REST API. Takes a
  * GoogleCalendarCredentialHolder (not a concrete model) so the same code
  * path serves both an organization's shared account and a staff member's
- * own account, and a GoogleCalendarSyncable (Booking or Event) for what to
- * push. No SDK, plain HTTP calls, matching ChipPaymentService's style.
+ * own account, and a GoogleCalendarSyncable (Event) for what to push. No
+ * SDK, plain HTTP calls, matching ChipPaymentService's style.
  */
 class GoogleCalendarService
 {

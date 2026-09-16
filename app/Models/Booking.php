@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Contracts\GoogleCalendarSyncable;
 use App\Enums\BookingStatus;
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
@@ -13,8 +12,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['organization_id', 'branch_id', 'user_id', 'guest_name', 'guest_email', 'guest_phone', 'space_id', 'title', 'start_time', 'end_time', 'status', 'approved_by', 'notes', 'google_event_id'])]
-class Booking extends Model implements GoogleCalendarSyncable
+#[Fillable(['organization_id', 'branch_id', 'user_id', 'guest_name', 'guest_email', 'guest_phone', 'space_id', 'title', 'start_time', 'end_time', 'status', 'approved_by', 'notes'])]
+class Booking extends Model
 {
     use BelongsToOrganization, HasFactory;
 
@@ -79,28 +78,5 @@ class Booking extends Model implements GoogleCalendarSyncable
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
-    }
-
-    public function googleEventPayload(): array
-    {
-        $description = "Booked by {$this->requesterName()}";
-
-        if ($this->notes) {
-            $description .= "\n\n{$this->notes}";
-        }
-
-        return [
-            'summary' => $this->title ?: $this->space->name,
-            'description' => $description,
-            'location' => $this->space->name,
-            'start' => [
-                'dateTime' => $this->start_time->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ],
-            'end' => [
-                'dateTime' => $this->end_time->toRfc3339String(),
-                'timeZone' => config('app.timezone'),
-            ],
-        ];
     }
 }

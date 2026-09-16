@@ -19,10 +19,11 @@ use Throwable;
 /**
  * Pushes a published event's schedule to whichever Google Calendar applies
  * (the org's shared calendar in Shared mode, or the event creator's own
- * calendar in Individual mode) — same shape as SyncBookingToGoogleCalendarJob,
- * dispatched by EventCalendarSyncService::reconcile() whenever an event's
- * "should it be on the calendar" state might have changed (registration
- * form published/unpublished, schedule or location edited).
+ * calendar in Individual mode) — the only synced model now (bookings were
+ * removed from Google Calendar sync). Dispatched by
+ * EventCalendarSyncService::reconcile() whenever an event's "should it be
+ * on the calendar" state might have changed (its own status, schedule, or
+ * location edited).
  *
  * Only handles cases where the Event row still exists by the time this
  * runs — a hard delete (Events\Index::delete()) cleans up its Google event

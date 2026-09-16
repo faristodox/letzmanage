@@ -8,12 +8,12 @@ use App\Models\Organization;
 use App\Models\User;
 
 /**
- * Shared by the Booking and Event Google Calendar sync jobs: which connected
- * account (if any) a given sync target should push to. Shared mode always
- * resolves to the org's own connection; Individual mode resolves to the
- * given owner's (booking requester / event creator) personal connection, if
- * they have one — an unconnected owner or a guest booking (no owner at all)
- * naturally resolves to null here, not an error, just nothing to sync to.
+ * Used by the Event Google Calendar sync job and EventCalendarSyncService:
+ * which connected account (if any) a given sync target should push to.
+ * Shared mode always resolves to the org's own connection; Individual mode
+ * resolves to the given owner's (event creator's) personal connection, if
+ * they have one — an unconnected owner (or no owner at all) naturally
+ * resolves to null here, not an error, just nothing to sync to.
  */
 trait ResolvesGoogleCalendarCredentialHolder
 {

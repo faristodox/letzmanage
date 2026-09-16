@@ -42,7 +42,7 @@
             <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h3 class="text-base font-semibold text-slate-900">{{ __('Google Calendar Sync') }}</h3>
                 <p class="mt-1 text-sm text-slate-500">
-                    {{ __('Push approved bookings and published events to Google Calendar automatically. Choose who owns the connected Google account.') }}
+                    {{ __('Push published events to Google Calendar automatically. Choose who owns the connected Google account.') }}
                 </p>
 
                 <div class="mt-4 space-y-3">
@@ -50,7 +50,7 @@
                         <input type="radio" wire:model.live="syncMode" value="disabled" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                         <span>
                             <span class="block text-sm font-medium text-slate-900">{{ __('Disabled') }}</span>
-                            <span class="block text-sm text-slate-500">{{ __("Don't sync bookings or events to Google Calendar.") }}</span>
+                            <span class="block text-sm text-slate-500">{{ __("Don't sync events to Google Calendar.") }}</span>
                         </span>
                     </label>
 
@@ -58,7 +58,7 @@
                         <input type="radio" wire:model.live="syncMode" value="shared" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                         <span>
                             <span class="block text-sm font-medium text-slate-900">{{ __('One shared organization account') }}</span>
-                            <span class="block text-sm text-slate-500">{{ __('Uses the connected Google account above. Every approved booking and published event, from any staff member, syncs onto that one calendar.') }}</span>
+                            <span class="block text-sm text-slate-500">{{ __('Uses the connected Google account above. Every published event, from any staff member, syncs onto that one calendar.') }}</span>
                         </span>
                     </label>
 
@@ -66,7 +66,7 @@
                         <input type="radio" wire:model.live="syncMode" value="individual" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
                         <span>
                             <span class="block text-sm font-medium text-slate-900">{{ __('Individual staff accounts') }}</span>
-                            <span class="block text-sm text-slate-500">{{ __("Each staff member connects their own Google account from their Profile page. Their own approved bookings and the events they created sync, and only once they've connected.") }}</span>
+                            <span class="block text-sm text-slate-500">{{ __("Each staff member connects their own Google account from their Profile page. The events they created sync, and only once they've connected.") }}</span>
                         </span>
                     </label>
                 </div>
