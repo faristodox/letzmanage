@@ -76,13 +76,14 @@ class Calendar extends Component
 
         $this->month = now()->format('Y-m');
         $this->canViewEvents = auth()->user()->can('viewAny', Event::class);
-        $this->space_id = $this->firstAvailableSpaceId();
+        $this->space_id = null; // Default to "All Office Spaces"
     }
 
     /**
-     * The calendar's Office Space filter defaults to one specific space (not
-     * "All") to match prior behavior, but is otherwise independent of which
-     * space a new booking targets — see $bookingSpaceId, set in openCreate().
+     * Used to default the create-booking form's own space picker
+     * ($bookingSpaceId, set in openCreate()) when no specific space is
+     * currently selected in the filter — the filter itself defaults to
+     * "All Office Spaces" (space_id = null), which is independent of this.
      */
     private function firstAvailableSpaceId(): ?int
     {

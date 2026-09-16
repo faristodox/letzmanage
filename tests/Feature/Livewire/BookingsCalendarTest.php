@@ -53,7 +53,7 @@ class BookingsCalendarTest extends TestCase
 
         Livewire::actingAs($staff)
             ->test(Calendar::class)
-            ->assertSet('space_id', $space->id)
+            ->assertSet('space_id', null)
             ->assertSee($existing->title)
             ->call('openCreate', $date)
             ->set('title', 'Planning session')
