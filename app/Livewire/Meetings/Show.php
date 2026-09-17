@@ -9,11 +9,27 @@ class Show extends Component
 {
     public Meeting $meeting;
 
+    public string $language = 'en';
+
     public function mount(Meeting $meeting): void
     {
         $this->authorize('view', $meeting);
 
         $this->meeting = $meeting;
+    }
+
+    public function setLanguage(string $language): void
+    {
+        $this->language = $language === 'ms' ? 'ms' : 'en';
+    }
+
+    public function currentMinutes(): ?string
+    {
+        if ($this->language === 'ms' && $this->meeting->minutes_ms) {
+            return $this->meeting->minutes_ms;
+        }
+
+        return $this->meeting->minutes;
     }
 
     public function delete()
@@ -39,9 +55,11 @@ class Show extends Component
     {
         $this->authorize('view', $this->meeting);
 
+        $suffix = $this->language === 'ms' && $this->meeting->minutes_ms ? '-minutes-ms' : '-minutes';
+
         return response()->streamDownload(
-            fn () => print ((string) $this->meeting->minutes),
-            "{$this->meeting->title}-minutes.txt",
+            fn () => print ((string) $this->currentMinutes()),
+            "{$this->meeting->title}{$suffix}.txt",
         );
     }
 

@@ -69,9 +69,23 @@
         <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-slate-900">{{ __('Minutes of Meeting') }}</h3>
-                <button wire:click="downloadMinutes" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Download') }}</button>
+                <div class="flex items-center gap-3">
+                    @if ($meeting->minutes_ms)
+                        <div class="flex gap-1 rounded-lg bg-slate-100 p-1">
+                            <button type="button" wire:click="setLanguage('en')"
+                                class="rounded-md px-2.5 py-1 text-xs font-medium transition {{ $language === 'en' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                                {{ __('English') }}
+                            </button>
+                            <button type="button" wire:click="setLanguage('ms')"
+                                class="rounded-md px-2.5 py-1 text-xs font-medium transition {{ $language === 'ms' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                                {{ __('Bahasa Malaysia') }}
+                            </button>
+                        </div>
+                    @endif
+                    <button wire:click="downloadMinutes" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Download') }}</button>
+                </div>
             </div>
-            <div class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $meeting->minutes }}</div>
+            <div class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $this->currentMinutes() }}</div>
         </div>
     @endif
 

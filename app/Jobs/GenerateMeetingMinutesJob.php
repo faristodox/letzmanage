@@ -54,10 +54,31 @@ class GenerateMeetingMinutesJob implements ShouldQueue
 
             $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title);
 
-            $meeting->update(['minutes' => $minutes, 'status' => MeetingStatus::Ready]);
+            $meeting->update([
+                'minutes' => $minutes,
+                'minutes_ms' => $this->translateBestEffort($gemini, $minutes, $meeting),
+                'status' => MeetingStatus::Ready,
+            ]);
 
             $meetings->notifyReady($meeting);
         });
+    }
+
+    /**
+     * The Malay translation is a nice-to-have alongside the primary English
+     * minutes, not a requirement — a translation failure shouldn't stop the
+     * meeting from reaching Ready with its (already-generated) English
+     * minutes.
+     */
+    private function translateBestEffort(GeminiSummaryService $gemini, string $minutes, Meeting $meeting): ?string
+    {
+        try {
+            return $gemini->translate($minutes, 'Malay (Bahasa Malaysia)');
+        } catch (Throwable $e) {
+            Log::warning('Failed to translate meeting minutes to Malay: '.$e->getMessage(), ['meeting_id' => $meeting->id]);
+
+            return null;
+        }
     }
 
     public function failed(Throwable $e): void

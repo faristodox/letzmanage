@@ -48,11 +48,19 @@ class GenerateMeetingMinutesJobTest extends TestCase
     public function test_saves_minutes_and_notifies_the_creator(): void
     {
         Notification::fake();
-        Http::fake([
-            'generativelanguage.googleapis.com/*' => Http::response([
+        Http::fake(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            if (str_contains($prompt, 'Translate the following Minutes of Meeting')) {
+                return Http::response([
+                    'candidates' => [['content' => ['parts' => [['text' => 'Tajuk: Sesi Usrah']]]]],
+                ]);
+            }
+
+            return Http::response([
                 'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
-            ]),
-        ]);
+            ]);
+        });
 
         $organization = Organization::factory()->create();
         $creator = User::factory()->create(['organization_id' => $organization->id]);
@@ -63,6 +71,35 @@ class GenerateMeetingMinutesJobTest extends TestCase
         $meeting->refresh();
         $this->assertSame(MeetingStatus::Ready, $meeting->status);
         $this->assertSame('Title: Usrah Session', $meeting->minutes);
+        $this->assertSame('Tajuk: Sesi Usrah', $meeting->minutes_ms);
+        Notification::assertSentTo($creator, MeetingMinutesReadyNotification::class);
+    }
+
+    public function test_translation_failure_does_not_prevent_the_meeting_from_reaching_ready(): void
+    {
+        Notification::fake();
+        Http::fake(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            if (str_contains($prompt, 'Translate the following Minutes of Meeting')) {
+                return Http::response(['error' => 'bad request'], 400);
+            }
+
+            return Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]);
+        });
+
+        $organization = Organization::factory()->create();
+        $creator = User::factory()->create(['organization_id' => $organization->id]);
+        $meeting = $this->summarizingMeeting($organization, $creator);
+
+        $this->runJob($organization->id, $meeting->id);
+
+        $meeting->refresh();
+        $this->assertSame(MeetingStatus::Ready, $meeting->status);
+        $this->assertSame('Title: Usrah Session', $meeting->minutes);
+        $this->assertNull($meeting->minutes_ms);
         Notification::assertSentTo($creator, MeetingMinutesReadyNotification::class);
     }
 

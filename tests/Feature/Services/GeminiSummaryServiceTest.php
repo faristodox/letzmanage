@@ -67,4 +67,36 @@ class GeminiSummaryServiceTest extends TestCase
 
         app(GeminiSummaryService::class)->summarize('transcript', 'title');
     }
+
+    public function test_returns_the_translated_text(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    ['content' => ['parts' => [['text' => 'Tajuk: Sesi Usrah']]]],
+                ],
+            ]),
+        ]);
+
+        $translated = app(GeminiSummaryService::class)->translate('Title: Usrah Session', 'Malay (Bahasa Malaysia)');
+
+        $this->assertSame('Tajuk: Sesi Usrah', $translated);
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'generateContent')
+                && str_contains($request['contents'][0]['parts'][0]['text'], 'Translate the following Minutes of Meeting')
+                && str_contains($request['contents'][0]['parts'][0]['text'], 'Malay (Bahasa Malaysia)')
+                && str_contains($request['contents'][0]['parts'][0]['text'], 'Title: Usrah Session');
+        });
+    }
+
+    public function test_translate_throws_a_runtime_exception_on_http_failure(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response(['error' => 'bad request'], 400),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        app(GeminiSummaryService::class)->translate('Title: Usrah Session', 'Malay (Bahasa Malaysia)');
+    }
 }
