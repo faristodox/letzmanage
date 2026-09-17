@@ -59,12 +59,34 @@ document.addEventListener('alpine:init', () => {
         recording: false,
         uploading: false,
         uploaded: false,
+        hybridMode: false,
         elapsedSeconds: 0,
         error: null,
+        warning: null,
         mediaRecorder: null,
         chunks: [],
         mimeType: null,
         timer: null,
+        micStream: null,
+        displayTracks: [],
+        audioContext: null,
+
+        // Tab-audio capture (getDisplayMedia's "Share tab audio" checkbox)
+        // is only reliable on desktop Chromium — Firefox's screen-share
+        // dialog doesn't offer a browser-tab option with audio, Safari isn't
+        // supported for live recording at all, and no mobile browser exposes
+        // getDisplayMedia to web pages (Android Chrome's user-agent still
+        // contains "Chrome", so it's excluded explicitly rather than by
+        // feature-detecting the function, which mobile Chrome also defines
+        // but can't actually fulfil for tab capture). Gating on this keeps
+        // the plain mic-only path (already proven, and the only option on
+        // phones) as the fallback for anyone the mixing path can't serve.
+        get hybridSupported() {
+            return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
+                && /Chrome|Edg\//.test(navigator.userAgent)
+                && !/Firefox/.test(navigator.userAgent)
+                && !/Mobi|Android/i.test(navigator.userAgent);
+        },
 
         get formattedElapsed() {
             const m = Math.floor(this.elapsedSeconds / 60).toString().padStart(2, '0');
@@ -74,9 +96,12 @@ document.addEventListener('alpine:init', () => {
 
         async start() {
             this.error = null;
+            this.warning = null;
             this.uploaded = false;
             this.chunks = [];
             this.elapsedSeconds = 0;
+            this.displayTracks = [];
+            this.audioContext = null;
 
             const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
             this.mimeType = candidates.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type)) || null;
@@ -87,16 +112,66 @@ document.addEventListener('alpine:init', () => {
             }
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                this.mediaRecorder = new MediaRecorder(stream, { mimeType: this.mimeType });
-                this.mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) this.chunks.push(e.data);
-                };
-                this.mediaRecorder.start();
-                this.recording = true;
-                this.timer = setInterval(() => this.elapsedSeconds++, 1000);
+                this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (e) {
                 this.error = 'Could not access your microphone. Please allow microphone access and try again.';
+                return;
+            }
+
+            let recordStream = this.micStream;
+
+            if (this.hybridMode && this.hybridSupported) {
+                recordStream = await this.mixInOnlineMeetingAudio(this.micStream);
+            }
+
+            this.mediaRecorder = new MediaRecorder(recordStream, { mimeType: this.mimeType });
+            this.mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) this.chunks.push(e.data);
+            };
+            this.mediaRecorder.start();
+            this.recording = true;
+            this.timer = setInterval(() => this.elapsedSeconds++, 1000);
+        },
+
+        // Best-effort: captures the online meeting's audio from a shared
+        // browser tab and mixes it with the room mic via the Web Audio API,
+        // so both physical and online attendees end up in one recording. If
+        // the user cancels the share dialog, or shares a tab/window without
+        // ticking "Share tab audio", we fall back to mic-only instead of
+        // failing the whole recording.
+        async mixInOnlineMeetingAudio(micStream) {
+            try {
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const audioTracks = displayStream.getAudioTracks();
+
+                displayStream.getVideoTracks().forEach((track) => track.stop());
+
+                if (audioTracks.length === 0) {
+                    this.warning = 'No audio was shared from the selected tab — recording microphone only. Next time, tick "Share tab audio" when choosing the meeting tab.';
+
+                    return micStream;
+                }
+
+                this.displayTracks = audioTracks;
+                this.audioContext = new AudioContext();
+                const destination = this.audioContext.createMediaStreamDestination();
+
+                // Force the mix down to mono: Google Speech-to-Text assumes
+                // 1 channel for WEBM/OPUS unless told otherwise, and a plain
+                // mic-only recording is already mono — a stereo destination
+                // (the default here) would produce a 2-channel file the
+                // backend never asks for and Google then rejects outright.
+                destination.channelCount = 1;
+                destination.channelCountMode = 'explicit';
+
+                this.audioContext.createMediaStreamSource(micStream).connect(destination);
+                this.audioContext.createMediaStreamSource(new MediaStream(audioTracks)).connect(destination);
+
+                return destination.stream;
+            } catch (e) {
+                this.warning = 'Could not capture the online meeting audio — recording microphone only.';
+
+                return micStream;
             }
         },
 
@@ -109,6 +184,9 @@ document.addEventListener('alpine:init', () => {
 
             this.mediaRecorder.addEventListener('stop', () => {
                 this.mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+                this.micStream?.getTracks().forEach((track) => track.stop());
+                this.displayTracks.forEach((track) => track.stop());
+                this.audioContext?.close();
 
                 const extension = this.mimeType.includes('ogg') ? 'ogg' : 'webm';
                 const file = new File(this.chunks, `recording.${extension}`, { type: this.mimeType });

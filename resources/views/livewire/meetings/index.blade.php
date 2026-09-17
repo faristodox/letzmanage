@@ -123,8 +123,19 @@
                                     <span x-show="uploading" class="text-sm text-slate-500">{{ __('Preparing recording...') }}</span>
                                 </div>
 
+                                <div x-show="hybridSupported && !recording && !uploading" class="mt-3 rounded-lg bg-slate-50 p-3 text-left">
+                                    <label class="flex items-start gap-2 text-sm text-slate-700">
+                                        <input type="checkbox" x-model="hybridMode" class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                        <span>{{ __('Hybrid meeting — also capture an online meeting tab (Google Meet, Zoom, Teams)') }}</span>
+                                    </label>
+                                    <p x-show="hybridMode" class="mt-1.5 text-xs text-slate-400">
+                                        {{ __('When you click Start Recording, a browser prompt will ask you to share a screen or tab — pick the tab running the online meeting and make sure "Share tab audio" is ticked.') }}
+                                    </p>
+                                </div>
+
                                 <p class="mt-2 text-xs text-slate-400">{{ __('Works best in Chrome, Firefox, or Edge. Safari isn\'t supported for live recording — use the Upload tab instead.') }}</p>
                                 <p x-show="error" x-text="error" class="mt-2 text-sm text-red-600"></p>
+                                <p x-show="warning" x-text="warning" class="mt-2 text-sm text-amber-600"></p>
 
                                 <p x-show="uploaded" class="mt-2 text-sm text-emerald-600">{{ __('Recording ready — click Create below.') }}</p>
                             </div>
