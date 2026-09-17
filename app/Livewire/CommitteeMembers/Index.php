@@ -18,6 +18,10 @@ class Index extends Component
 
     public string $position = '';
 
+    public string $icNumber = '';
+
+    public ?int $viewingAttendanceForId = null;
+
     public function mount(): void
     {
         $this->authorize('viewAny', CommitteeMember::class);
@@ -27,7 +31,7 @@ class Index extends Component
     {
         $this->authorize('create', CommitteeMember::class);
 
-        $this->reset(['editingId', 'name', 'position']);
+        $this->reset(['editingId', 'name', 'position', 'icNumber']);
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -39,6 +43,7 @@ class Index extends Component
         $this->editingId = $committeeMember->id;
         $this->name = $committeeMember->name;
         $this->position = $committeeMember->position;
+        $this->icNumber = (string) $committeeMember->ic_number;
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -46,7 +51,7 @@ class Index extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['editingId', 'name', 'position']);
+        $this->reset(['editingId', 'name', 'position', 'icNumber']);
         $this->resetValidation();
     }
 
@@ -55,7 +60,14 @@ class Index extends Component
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'position' => ['required', 'string', 'max:255'],
+            'icNumber' => ['nullable', 'string', 'max:32'],
         ]);
+
+        $data = [
+            'name' => $data['name'],
+            'position' => $data['position'],
+            'ic_number' => $data['icNumber'] ?: null,
+        ];
 
         if ($this->editingId) {
             $committeeMember = CommitteeMember::findOrFail($this->editingId);
@@ -76,14 +88,32 @@ class Index extends Component
         $committeeMember->delete();
     }
 
+    public function viewAttendance(CommitteeMember $committeeMember): void
+    {
+        $this->authorize('view', $committeeMember);
+
+        $this->viewingAttendanceForId = $committeeMember->id;
+    }
+
+    public function closeAttendanceModal(): void
+    {
+        $this->viewingAttendanceForId = null;
+    }
+
     public function render()
     {
         $committeeMembers = CommitteeMember::query()
             ->orderBy('name')
             ->paginate(15);
 
+        $viewingAttendance = $this->viewingAttendanceForId
+            ? CommitteeMember::with(['attendedMeetings' => fn ($query) => $query->orderByDesc('meeting_attendances.checked_in_at')])
+                ->find($this->viewingAttendanceForId)
+            : null;
+
         return view('livewire.committee-members.index', [
             'committeeMembers' => $committeeMembers,
+            'viewingAttendance' => $viewingAttendance,
         ]);
     }
 }

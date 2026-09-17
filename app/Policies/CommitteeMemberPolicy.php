@@ -13,6 +13,11 @@ class CommitteeMemberPolicy
         return $user->can(PermissionName::ManageMeetings->value);
     }
 
+    public function view(User $user, CommitteeMember $committeeMember): bool
+    {
+        return $user->can(PermissionName::ManageMeetings->value);
+    }
+
     public function create(User $user): bool
     {
         return $user->can(PermissionName::ManageMeetings->value);

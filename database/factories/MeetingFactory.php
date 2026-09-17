@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MeetingAttendanceMode;
 use App\Enums\MeetingStatus;
 use App\Models\Meeting;
 use App\Models\Organization;
@@ -26,6 +27,8 @@ class MeetingFactory extends Factory
             'minutes' => "Attendees: ".fake()->name()."\n\nKey Discussion Points:\n- ".fake()->sentence(),
             'duration_seconds' => fake()->numberBetween(600, 7200),
             'failure_reason' => null,
+            'attendance_mode' => MeetingAttendanceMode::None,
+            'checkin_token' => null,
         ];
     }
 

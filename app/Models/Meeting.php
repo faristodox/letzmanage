@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Enums\MeetingAttendanceMode;
 use App\Enums\MeetingStatus;
 use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['organization_id', 'event_id', 'created_by', 'archived_file_id', 'title', 'status', 'audio_gcs_object', 'gcs_operation_name', 'transcript', 'minutes', 'minutes_ms', 'duration_seconds', 'failure_reason'])]
+#[Fillable(['organization_id', 'event_id', 'created_by', 'archived_file_id', 'title', 'status', 'audio_gcs_object', 'gcs_operation_name', 'transcript', 'minutes', 'minutes_ms', 'duration_seconds', 'failure_reason', 'attendance_mode', 'checkin_token'])]
 class Meeting extends Model
 {
     use BelongsToOrganization, HasFactory;
@@ -18,6 +20,7 @@ class Meeting extends Model
     {
         return [
             'status' => MeetingStatus::class,
+            'attendance_mode' => MeetingAttendanceMode::class,
         ];
     }
 
@@ -34,6 +37,30 @@ class Meeting extends Model
     public function archivedFile(): BelongsTo
     {
         return $this->belongsTo(ArchivedFile::class);
+    }
+
+    /**
+     * The pre-selected invite list — only consulted when attendance_mode is
+     * Invitation; ignored (and expected empty) otherwise.
+     */
+    public function invitedMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(CommitteeMember::class, 'meeting_invitations');
+    }
+
+    /**
+     * Committee members confirmed present via the public check-in flow (see
+     * Livewire\Public\MeetingCheckIn) — the ground truth GenerateMeetingMinutesJob
+     * prefers over guessing attendees from the transcript when non-empty.
+     */
+    public function attendees(): BelongsToMany
+    {
+        return $this->belongsToMany(CommitteeMember::class, 'meeting_attendances')->withPivot('checked_in_at');
+    }
+
+    public function checkInUrl(): ?string
+    {
+        return $this->checkin_token ? route('meetings.checkin.show', ['token' => $this->checkin_token]) : null;
     }
 
     /**

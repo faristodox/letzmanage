@@ -23,10 +23,14 @@ class GeminiSummaryService
      *         when given, the prompt asks Gemini to cross-check transcript
      *         attendees against it and prefer the exact registered name and
      *         position, since ASR transcripts can garble names.
+     * @param  array<int, array{name: string, position: string}>  $confirmedAttendees  Attendees
+     *         confirmed via the Meeting check-in flow (see Meeting::attendees) —
+     *         ground truth, so when given this replaces $committeeMembers
+     *         entirely for the Attendees section instead of just informing it.
      */
-    public function summarize(string $transcript, string $meetingTitle, array $committeeMembers = []): string
+    public function summarize(string $transcript, string $meetingTitle, array $committeeMembers = [], array $confirmedAttendees = []): string
     {
-        return $this->generate($this->buildSummaryPrompt($transcript, $meetingTitle, $committeeMembers));
+        return $this->generate($this->buildSummaryPrompt($transcript, $meetingTitle, $committeeMembers, $confirmedAttendees));
     }
 
     /**
@@ -71,13 +75,17 @@ class GeminiSummaryService
         return $text;
     }
 
-    private function buildSummaryPrompt(string $transcript, string $meetingTitle, array $committeeMembers = []): string
+    private function buildSummaryPrompt(string $transcript, string $meetingTitle, array $committeeMembers = [], array $confirmedAttendees = []): string
     {
-        $rosterInstruction = $committeeMembers ? $this->buildRosterInstruction($committeeMembers) : '';
+        $attendeeInstruction = match (true) {
+            $confirmedAttendees !== [] => $this->buildConfirmedAttendeesInstruction($confirmedAttendees),
+            $committeeMembers !== [] => $this->buildRosterInstruction($committeeMembers),
+            default => '',
+        };
 
         return <<<PROMPT
         Summarize the following meeting transcript into a structured Minutes of Meeting. Use these sections, in this order: Title, Date (only if mentioned in the transcript, otherwise omit), Attendees (only names identifiable from the transcript), Key Discussion Points, Decisions Made, Action Items (owner and item), Next Steps. Output as plain readable text, no markdown formatting symbols.
-        {$rosterInstruction}
+        {$attendeeInstruction}
         Meeting title: {$meetingTitle}
 
         Transcript:
@@ -99,6 +107,23 @@ class GeminiSummaryService
         Known committee/board members for this organization:
         {$roster}
         When listing Attendees, match speakers in the transcript against this list (the transcript may misspell or mishear names) and use their exact registered name and position, formatted as "Name (Position)". If someone in the transcript isn't on this list, just list their name as heard, with no position.
+
+        INSTRUCTION;
+    }
+
+    /**
+     * @param  array<int, array{name: string, position: string}>  $confirmedAttendees
+     */
+    private function buildConfirmedAttendeesInstruction(array $confirmedAttendees): string
+    {
+        $list = collect($confirmedAttendees)
+            ->map(fn (array $member) => "- {$member['name']} ({$member['position']})")
+            ->implode("\n");
+
+        return <<<INSTRUCTION
+
+        Attendance for this meeting was confirmed via check-in, not guessed from the transcript. Use EXACTLY this list for the Attendees section, verbatim, one per line — do not add, remove, or guess additional names from the transcript, even if other voices are heard:
+        {$list}
 
         INSTRUCTION;
     }

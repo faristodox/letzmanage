@@ -138,4 +138,29 @@ class GeminiSummaryServiceTest extends TestCase
             return ! str_contains($prompt, 'Known committee/board members');
         });
     }
+
+    public function test_confirmed_attendees_override_the_roster_instruction(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        app(GeminiSummaryService::class)->summarize(
+            'Faris: hello.',
+            'Usrah Session',
+            [['name' => 'Someone Else', 'position' => 'Treasurer']],
+            [['name' => 'Ahmad Zaki', 'position' => 'President']],
+        );
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return str_contains($prompt, 'confirmed via check-in')
+                && str_contains($prompt, 'Ahmad Zaki (President)')
+                && ! str_contains($prompt, 'Known committee/board members')
+                && ! str_contains($prompt, 'Someone Else');
+        });
+    }
 }

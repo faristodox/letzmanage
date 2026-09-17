@@ -127,6 +127,33 @@ class GenerateMeetingMinutesJobTest extends TestCase
         });
     }
 
+    public function test_confirmed_checkin_attendees_take_priority_over_the_roster(): void
+    {
+        Notification::fake();
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        $organization = Organization::factory()->create();
+        $creator = User::factory()->create(['organization_id' => $organization->id]);
+        CommitteeMember::factory()->for($organization)->create(['name' => 'Someone Else', 'position' => 'Treasurer']);
+        $checkedIn = CommitteeMember::factory()->for($organization)->create(['name' => 'Ahmad Zaki', 'position' => 'President']);
+        $meeting = $this->summarizingMeeting($organization, $creator);
+        $meeting->attendees()->attach($checkedIn->id, ['checked_in_at' => now()]);
+
+        $this->runJob($organization->id, $meeting->id);
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return str_contains($prompt, 'confirmed via check-in')
+                && str_contains($prompt, 'Ahmad Zaki (President)')
+                && ! str_contains($prompt, 'Known committee/board members');
+        });
+    }
+
     public function test_failed_marks_the_meeting_failed_and_notifies(): void
     {
         Notification::fake();

@@ -18,6 +18,7 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Name') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Position') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('IC Number') }}</th>
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -26,14 +27,16 @@
                     <tr wire:key="committee-member-{{ $committeeMember->id }}" class="hover:bg-slate-50">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $committeeMember->name }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $committeeMember->position }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $committeeMember->maskedIcNumber() ?? '—' }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
-                            <button wire:click="edit({{ $committeeMember->id }})" class="font-medium text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
+                            <button wire:click="viewAttendance({{ $committeeMember->id }})" class="font-medium text-indigo-600 hover:text-indigo-700">{{ __('Attendance') }}</button>
+                            <button wire:click="edit({{ $committeeMember->id }})" class="ml-3 font-medium text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
                             <button wire:click="delete({{ $committeeMember->id }})" wire:confirm="{{ __('Remove this committee member?') }}" class="ml-3 font-medium text-red-600 hover:text-red-700">{{ __('Remove') }}</button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No committee members added yet.') }}</td>
+                        <td colspan="4" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No committee members added yet.') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -65,11 +68,45 @@
                             <x-input-error :messages="$errors->get('position')" class="mt-2" />
                         </div>
 
+                        <div>
+                            <x-input-label for="committee_member_ic_number" :value="__('IC Number (MyKad)')" />
+                            <x-text-input wire:model="icNumber" id="committee_member_ic_number" type="text" class="mt-1 block w-full" placeholder="{{ __('Optional — needed for meeting check-in') }}" />
+                            <x-input-error :messages="$errors->get('icNumber')" class="mt-2" />
+                        </div>
+
                         <div class="mt-6 flex justify-end gap-3">
                             <x-secondary-button type="button" wire:click="closeModal">{{ __('Cancel') }}</x-secondary-button>
                             <x-primary-button type="submit">{{ $editingId ? __('Save') : __('Add') }}</x-primary-button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($viewingAttendance)
+        <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0">
+            <div class="fixed inset-0 bg-slate-900/50" wire:click="closeAttendanceModal"></div>
+
+            <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-lg">
+                <div class="p-6 sm:p-8">
+                    <h2 class="text-lg font-semibold text-slate-900">{{ __('Attendance history') }}</h2>
+                    <p class="mt-1 text-sm text-slate-500">{{ $viewingAttendance->name }} ({{ $viewingAttendance->position }})</p>
+
+                    <div class="mt-4 max-h-96 space-y-2 overflow-y-auto">
+                        @forelse ($viewingAttendance->attendedMeetings as $attendedMeeting)
+                            <div class="rounded-lg border border-slate-200 p-3">
+                                <p class="text-sm font-medium text-slate-900">{{ $attendedMeeting->title }}</p>
+                                <p class="text-xs text-slate-500">{{ \Illuminate\Support\Carbon::parse($attendedMeeting->pivot->checked_in_at)->format('d M Y, g:i A') }}</p>
+                            </div>
+                        @empty
+                            <p class="text-sm text-slate-500">{{ __('No recorded attendance yet.') }}</p>
+                        @endforelse
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <x-secondary-button type="button" wire:click="closeAttendanceModal">{{ __('Close') }}</x-secondary-button>
+                    </div>
                 </div>
             </div>
         </div>

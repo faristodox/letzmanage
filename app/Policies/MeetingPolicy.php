@@ -23,6 +23,11 @@ class MeetingPolicy
         return $user->can(PermissionName::ManageMeetings->value);
     }
 
+    public function update(User $user, Meeting $meeting): bool
+    {
+        return $user->can(PermissionName::ManageMeetings->value);
+    }
+
     public function delete(User $user, Meeting $meeting): bool
     {
         return $user->can(PermissionName::ManageMeetings->value);

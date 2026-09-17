@@ -5,6 +5,7 @@ namespace Tests\Feature\Livewire;
 use App\Enums\RoleName;
 use App\Livewire\CommitteeMembers\Index;
 use App\Models\CommitteeMember;
+use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -104,5 +105,18 @@ class CommitteeMembersIndexTest extends TestCase
             ->call('delete', $committeeMember);
 
         $this->assertDatabaseMissing('committee_members', ['id' => $committeeMember->id]);
+    }
+
+    public function test_admin_can_view_a_members_attendance_history(): void
+    {
+        $organization = Organization::factory()->create();
+        $committeeMember = CommitteeMember::factory()->for($organization)->create();
+        $meeting = Meeting::factory()->for($organization)->create(['title' => 'Board Meeting Q1']);
+        $meeting->attendees()->attach($committeeMember->id, ['checked_in_at' => now()]);
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Index::class)
+            ->call('viewAttendance', $committeeMember)
+            ->assertSee('Board Meeting Q1');
     }
 }

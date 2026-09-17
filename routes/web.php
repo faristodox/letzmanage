@@ -3,6 +3,7 @@
 use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
 use App\Enums\FormStatus;
+use App\Enums\MeetingAttendanceMode;
 use App\Enums\OrganizationStatus;
 use App\Http\Controllers\ChipWebhookController;
 use App\Http\Controllers\GoogleCalendarConnectionController;
@@ -141,6 +142,20 @@ Route::get('form/{organization:slug}/{formSlug}', function (Organization $organi
 
     return view('public.form-submission', ['organization' => $organization, 'form' => $form]);
 })->name('form-submission.show');
+
+// Public, unauthenticated check-in for a committee/board meeting — the URL
+// carries an unguessable random token (not the sequential meeting id) since
+// Meetings otherwise have zero public exposure. A meeting whose check-in has
+// been switched off (or never enabled) 404s rather than revealing anything.
+Route::get('meetings/checkin/{token}', function (string $token) {
+    $meeting = Meeting::query()->acrossOrganizations()->where('checkin_token', $token)->first();
+
+    abort_if(! $meeting || $meeting->attendance_mode === MeetingAttendanceMode::None, 404);
+
+    app(CurrentOrganization::class)->set($meeting->organization);
+
+    return view('public.meeting-checkin', ['meeting' => $meeting]);
+})->name('meetings.checkin.show');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

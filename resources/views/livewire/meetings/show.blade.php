@@ -65,6 +65,62 @@
         @endif
     </div>
 
+    <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-900">{{ __('Attendance') }}</h3>
+        <p class="mt-1 text-sm text-slate-500">{{ __('Let committee/board members check in themselves — confirmed attendance replaces guesswork from the transcript in the Minutes of Meeting.') }}</p>
+
+        <form wire:submit="saveAttendanceSettings" class="mt-4 space-y-4">
+            <div>
+                <x-input-label for="attendance_mode" :value="__('Check-in mode')" />
+                <select wire:model.live="attendanceMode" id="attendance_mode" class="mt-1 block w-full max-w-xs rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="none">{{ __('Off') }}</option>
+                    <option value="checkin">{{ __('Open check-in') }}</option>
+                    <option value="invitation">{{ __('Invitation only') }}</option>
+                </select>
+            </div>
+
+            @if ($attendanceMode === 'invitation')
+                <div>
+                    <x-input-label :value="__('Invited members')" />
+                    <div class="mt-1 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                        @forelse ($committeeMembers as $committeeMember)
+                            <label class="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" wire:model="invitedMemberIds" value="{{ $committeeMember->id }}" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                {{ $committeeMember->name }} <span class="text-slate-400">({{ $committeeMember->position }})</span>
+                            </label>
+                        @empty
+                            <p class="text-sm text-slate-500">{{ __('No committee members yet — add some on the Committee Members page first.') }}</p>
+                        @endforelse
+                    </div>
+                </div>
+            @endif
+
+            <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
+        </form>
+
+        @if ($meeting->attendance_mode->value !== 'none' && $meeting->checkInUrl())
+            <div class="mt-6 border-t border-slate-100 pt-4">
+                <p class="text-sm font-medium text-slate-700">{{ __('Check-in link') }}</p>
+                <a href="{{ $meeting->checkInUrl() }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-700 break-all">{{ $meeting->checkInUrl() }}</a>
+
+                <div class="mt-3" x-data="qrCanvas(@js($meeting->checkInUrl()))" wire:ignore>
+                    <canvas x-ref="canvas" class="rounded-lg bg-white p-2 shadow-sm"></canvas>
+                    <button type="button" @click="download()" class="mt-2 block text-xs font-semibold text-indigo-600 hover:text-indigo-700">{{ __('Download QR') }}</button>
+                </div>
+
+                <p class="mt-4 text-sm font-medium text-slate-700">{{ __('Checked in') }} ({{ $attendees->count() }})</p>
+                @forelse ($attendees as $attendee)
+                    <p class="mt-1 text-sm text-slate-600">
+                        {{ $attendee->name }} <span class="text-slate-400">({{ $attendee->position }})</span>
+                        — {{ \Illuminate\Support\Carbon::parse($attendee->pivot->checked_in_at)->format('d M Y, g:i A') }}
+                    </p>
+                @empty
+                    <p class="mt-1 text-sm text-slate-500">{{ __('No one has checked in yet.') }}</p>
+                @endforelse
+            </div>
+        @endif
+    </div>
+
     @if ($meeting->minutes)
         <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between">

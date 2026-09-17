@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * The organization's committee/board roster — an authoritative reference
@@ -14,8 +15,35 @@ use Illuminate\Database\Eloquent\Model;
  * of whatever a possibly-garbled ASR transcript produced. See
  * GeminiSummaryService::summarize().
  */
-#[Fillable(['organization_id', 'name', 'position'])]
+#[Fillable(['organization_id', 'name', 'position', 'ic_number'])]
 class CommitteeMember extends Model
 {
     use BelongsToOrganization, HasFactory;
+
+    /**
+     * Full history of meetings this member has checked into — surfaced from
+     * the Committee Members list for annual-report reference.
+     */
+    public function attendedMeetings(): BelongsToMany
+    {
+        return $this->belongsToMany(Meeting::class, 'meeting_attendances')->withPivot('checked_in_at');
+    }
+
+    /**
+     * Masks all but the last 4 characters — the admin list shows this by
+     * default rather than the full IC/MyKad number, since there's no need to
+     * display the whole thing for routine reference.
+     */
+    public function maskedIcNumber(): ?string
+    {
+        if (! $this->ic_number) {
+            return null;
+        }
+
+        $length = strlen($this->ic_number);
+
+        return $length <= 4
+            ? $this->ic_number
+            : str_repeat('•', $length - 4).substr($this->ic_number, -4);
+    }
 }

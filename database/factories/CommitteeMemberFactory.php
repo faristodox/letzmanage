@@ -17,6 +17,7 @@ class CommitteeMemberFactory extends Factory
             'organization_id' => Organization::factory(),
             'name' => fake()->name(),
             'position' => fake()->randomElement(['President', 'Vice President', 'Secretary', 'Treasurer', 'Committee Member']),
+            'ic_number' => fake()->unique()->numerify('############'),
         ];
     }
 }
