@@ -215,6 +215,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('meetings/{meeting}', fn (Meeting $meeting) => view('meetings.show', ['meeting' => $meeting]))
         ->name('meetings.show')->can('view', 'meeting');
 
+    Route::view('committee-members', 'committee-members.index')->name('committee-members.index');
+
     Route::get('forms/{form}/builder', fn (Form $form) => view('forms.builder', ['form' => $form]))
         ->name('forms.builder')->can('update', 'form');
 

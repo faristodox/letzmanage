@@ -4,6 +4,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Enums\MeetingStatus;
 use App\Jobs\GenerateMeetingMinutesJob;
+use App\Models\CommitteeMember;
 use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
@@ -101,6 +102,29 @@ class GenerateMeetingMinutesJobTest extends TestCase
         $this->assertSame('Title: Usrah Session', $meeting->minutes);
         $this->assertNull($meeting->minutes_ms);
         Notification::assertSentTo($creator, MeetingMinutesReadyNotification::class);
+    }
+
+    public function test_includes_the_organizations_committee_roster_in_the_summarize_prompt(): void
+    {
+        Notification::fake();
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        $organization = Organization::factory()->create();
+        $creator = User::factory()->create(['organization_id' => $organization->id]);
+        CommitteeMember::factory()->for($organization)->create(['name' => 'Ahmad Zaki', 'position' => 'President']);
+        $meeting = $this->summarizingMeeting($organization, $creator);
+
+        $this->runJob($organization->id, $meeting->id);
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return str_contains($prompt, 'Ahmad Zaki (President)');
+        });
     }
 
     public function test_failed_marks_the_meeting_failed_and_notifies(): void

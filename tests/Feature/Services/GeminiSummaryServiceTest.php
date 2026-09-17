@@ -99,4 +99,43 @@ class GeminiSummaryServiceTest extends TestCase
 
         app(GeminiSummaryService::class)->translate('Title: Usrah Session', 'Malay (Bahasa Malaysia)');
     }
+
+    public function test_summarize_includes_the_committee_roster_when_given(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        app(GeminiSummaryService::class)->summarize('Faris: hello.', 'Usrah Session', [
+            ['name' => 'Ahmad Zaki', 'position' => 'President'],
+            ['name' => 'Siti Aminah', 'position' => 'Secretary'],
+        ]);
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return str_contains($prompt, 'Known committee/board members')
+                && str_contains($prompt, 'Ahmad Zaki (President)')
+                && str_contains($prompt, 'Siti Aminah (Secretary)');
+        });
+    }
+
+    public function test_summarize_omits_the_roster_instruction_when_none_given(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        app(GeminiSummaryService::class)->summarize('Faris: hello.', 'Usrah Session');
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return ! str_contains($prompt, 'Known committee/board members');
+        });
+    }
 }

@@ -17,9 +17,16 @@ class GeminiSummaryService
 {
     private const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/';
 
-    public function summarize(string $transcript, string $meetingTitle): string
+    /**
+     * @param  array<int, array{name: string, position: string}>  $committeeMembers  The
+     *         organization's official committee/board roster (see CommitteeMember) —
+     *         when given, the prompt asks Gemini to cross-check transcript
+     *         attendees against it and prefer the exact registered name and
+     *         position, since ASR transcripts can garble names.
+     */
+    public function summarize(string $transcript, string $meetingTitle, array $committeeMembers = []): string
     {
-        return $this->generate($this->buildSummaryPrompt($transcript, $meetingTitle));
+        return $this->generate($this->buildSummaryPrompt($transcript, $meetingTitle, $committeeMembers));
     }
 
     /**
@@ -64,16 +71,36 @@ class GeminiSummaryService
         return $text;
     }
 
-    private function buildSummaryPrompt(string $transcript, string $meetingTitle): string
+    private function buildSummaryPrompt(string $transcript, string $meetingTitle, array $committeeMembers = []): string
     {
+        $rosterInstruction = $committeeMembers ? $this->buildRosterInstruction($committeeMembers) : '';
+
         return <<<PROMPT
         Summarize the following meeting transcript into a structured Minutes of Meeting. Use these sections, in this order: Title, Date (only if mentioned in the transcript, otherwise omit), Attendees (only names identifiable from the transcript), Key Discussion Points, Decisions Made, Action Items (owner and item), Next Steps. Output as plain readable text, no markdown formatting symbols.
-
+        {$rosterInstruction}
         Meeting title: {$meetingTitle}
 
         Transcript:
         {$transcript}
         PROMPT;
+    }
+
+    /**
+     * @param  array<int, array{name: string, position: string}>  $committeeMembers
+     */
+    private function buildRosterInstruction(array $committeeMembers): string
+    {
+        $roster = collect($committeeMembers)
+            ->map(fn (array $member) => "- {$member['name']} ({$member['position']})")
+            ->implode("\n");
+
+        return <<<INSTRUCTION
+
+        Known committee/board members for this organization:
+        {$roster}
+        When listing Attendees, match speakers in the transcript against this list (the transcript may misspell or mishear names) and use their exact registered name and position, formatted as "Name (Position)". If someone in the transcript isn't on this list, just list their name as heard, with no position.
+
+        INSTRUCTION;
     }
 
     private function buildTranslationPrompt(string $text, string $targetLanguage): string

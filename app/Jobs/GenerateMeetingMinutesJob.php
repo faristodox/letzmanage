@@ -45,14 +45,19 @@ class GenerateMeetingMinutesJob implements ShouldQueue
             return;
         }
 
-        $currentOrganization->runFor($organization, function () use ($gemini, $meetings): void {
+        $currentOrganization->runFor($organization, function () use ($organization, $gemini, $meetings): void {
             $meeting = Meeting::with('creator')->find($this->meetingId);
 
             if (! $meeting) {
                 return;
             }
 
-            $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title);
+            $committeeMembers = $organization->committeeMembers()
+                ->get(['name', 'position'])
+                ->map(fn ($member) => ['name' => $member->name, 'position' => $member->position])
+                ->all();
+
+            $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title, $committeeMembers);
 
             $meeting->update([
                 'minutes' => $minutes,
