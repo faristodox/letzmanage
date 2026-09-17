@@ -75,24 +75,15 @@
                 <select wire:model.live="attendanceMode" id="attendance_mode" class="mt-1 block w-full max-w-xs rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="none">{{ __('Off') }}</option>
                     <option value="checkin">{{ __('Open check-in') }}</option>
-                    <option value="invitation">{{ __('Invitation only') }}</option>
                 </select>
             </div>
 
-            @if ($attendanceMode === 'invitation')
-                <div>
-                    <x-input-label :value="__('Invited members')" />
-                    <div class="mt-1 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-3">
-                        @forelse ($committeeMembers as $committeeMember)
-                            <label class="flex items-center gap-2 text-sm text-slate-700">
-                                <input type="checkbox" wire:model="invitedMemberIds" value="{{ $committeeMember->id }}" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                                {{ $committeeMember->name }} <span class="text-slate-400">({{ $committeeMember->position }})</span>
-                            </label>
-                        @empty
-                            <p class="text-sm text-slate-500">{{ __('No committee members yet — add some on the Committee Members page first.') }}</p>
-                        @endforelse
-                    </div>
-                </div>
+            @if ($attendanceMode === 'checkin')
+                <label class="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" wire:model="allowNewRegistration" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                    {{ __('Allow new registration') }}
+                </label>
+                <p class="text-xs text-slate-400">{{ __('If someone\'s IC number isn\'t on the Committee Members roster, let them check in by entering their name and position instead of being turned away.') }}</p>
             @endif
 
             <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
@@ -111,8 +102,14 @@
                 <p class="mt-4 text-sm font-medium text-slate-700">{{ __('Checked in') }} ({{ $attendees->count() }})</p>
                 @forelse ($attendees as $attendee)
                     <p class="mt-1 text-sm text-slate-600">
-                        {{ $attendee->name }} <span class="text-slate-400">({{ $attendee->position }})</span>
-                        — {{ \Illuminate\Support\Carbon::parse($attendee->pivot->checked_in_at)->format('d M Y, g:i A') }}
+                        {{ $attendee->displayName() }}
+                        @if ($attendee->displayPosition())
+                            <span class="text-slate-400">({{ $attendee->displayPosition() }})</span>
+                        @endif
+                        @unless ($attendee->committee_member_id)
+                            <span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ __('Guest') }}</span>
+                        @endunless
+                        — {{ $attendee->checked_in_at->format('d M Y, g:i A') }}
                     </p>
                 @empty
                     <p class="mt-1 text-sm text-slate-500">{{ __('No one has checked in yet.') }}</p>

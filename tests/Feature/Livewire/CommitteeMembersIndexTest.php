@@ -112,7 +112,7 @@ class CommitteeMembersIndexTest extends TestCase
         $organization = Organization::factory()->create();
         $committeeMember = CommitteeMember::factory()->for($organization)->create();
         $meeting = Meeting::factory()->for($organization)->create(['title' => 'Board Meeting Q1']);
-        $meeting->attendees()->attach($committeeMember->id, ['checked_in_at' => now()]);
+        $meeting->attendees()->create(['committee_member_id' => $committeeMember->id, 'checked_in_at' => now()]);
 
         Livewire::actingAs($this->admin($organization))
             ->test(Index::class)

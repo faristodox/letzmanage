@@ -29,6 +29,7 @@ class MeetingFactory extends Factory
             'failure_reason' => null,
             'attendance_mode' => MeetingAttendanceMode::None,
             'checkin_token' => null,
+            'allow_new_registration' => false,
         ];
     }
 

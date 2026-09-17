@@ -58,8 +58,9 @@ class GenerateMeetingMinutesJob implements ShouldQueue
                 ->all();
 
             $confirmedAttendees = $meeting->attendees()
-                ->get(['committee_members.name', 'committee_members.position'])
-                ->map(fn ($member) => ['name' => $member->name, 'position' => $member->position])
+                ->with('committeeMember')
+                ->get()
+                ->map(fn ($attendee) => ['name' => $attendee->displayName(), 'position' => (string) $attendee->displayPosition()])
                 ->all();
 
             $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title, $committeeMembers, $confirmedAttendees);

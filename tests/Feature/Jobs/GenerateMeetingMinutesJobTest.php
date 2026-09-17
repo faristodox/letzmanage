@@ -141,7 +141,7 @@ class GenerateMeetingMinutesJobTest extends TestCase
         CommitteeMember::factory()->for($organization)->create(['name' => 'Someone Else', 'position' => 'Treasurer']);
         $checkedIn = CommitteeMember::factory()->for($organization)->create(['name' => 'Ahmad Zaki', 'position' => 'President']);
         $meeting = $this->summarizingMeeting($organization, $creator);
-        $meeting->attendees()->attach($checkedIn->id, ['checked_in_at' => now()]);
+        $meeting->attendees()->create(['committee_member_id' => $checkedIn->id, 'checked_in_at' => now()]);
 
         $this->runJob($organization->id, $meeting->id);
 
@@ -151,6 +151,29 @@ class GenerateMeetingMinutesJobTest extends TestCase
             return str_contains($prompt, 'confirmed via check-in')
                 && str_contains($prompt, 'Ahmad Zaki (President)')
                 && ! str_contains($prompt, 'Known committee/board members');
+        });
+    }
+
+    public function test_guest_attendees_are_included_in_the_confirmed_attendees_list(): void
+    {
+        Notification::fake();
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'Title: Usrah Session']]]]],
+            ]),
+        ]);
+
+        $organization = Organization::factory()->create();
+        $creator = User::factory()->create(['organization_id' => $organization->id]);
+        $meeting = $this->summarizingMeeting($organization, $creator);
+        $meeting->attendees()->create(['guest_name' => 'Guest Speaker', 'guest_position' => null, 'checked_in_at' => now()]);
+
+        $this->runJob($organization->id, $meeting->id);
+
+        Http::assertSent(function ($request) {
+            $prompt = $request['contents'][0]['parts'][0]['text'];
+
+            return str_contains($prompt, 'confirmed via check-in') && str_contains($prompt, 'Guest Speaker');
         });
     }
 

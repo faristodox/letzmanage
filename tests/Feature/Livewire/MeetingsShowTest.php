@@ -5,7 +5,6 @@ namespace Tests\Feature\Livewire;
 use App\Enums\MeetingAttendanceMode;
 use App\Enums\RoleName;
 use App\Livewire\Meetings\Show;
-use App\Models\CommitteeMember;
 use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
@@ -115,22 +114,35 @@ class MeetingsShowTest extends TestCase
         $this->assertNotNull($meeting->checkin_token);
     }
 
-    public function test_admin_can_restrict_to_invited_members_only(): void
+    public function test_admin_can_enable_allow_new_registration(): void
     {
         $organization = Organization::factory()->create();
         $meeting = Meeting::factory()->for($organization)->create();
-        $invited = CommitteeMember::factory()->for($organization)->create();
-        $notInvited = CommitteeMember::factory()->for($organization)->create();
 
         Livewire::actingAs($this->admin($organization))
             ->test(Show::class, ['meeting' => $meeting])
-            ->set('attendanceMode', 'invitation')
-            ->set('invitedMemberIds', [$invited->id])
+            ->set('attendanceMode', 'checkin')
+            ->set('allowNewRegistration', true)
             ->call('saveAttendanceSettings');
 
         $meeting->refresh();
-        $this->assertSame(MeetingAttendanceMode::Invitation, $meeting->attendance_mode);
-        $this->assertTrue($meeting->invitedMembers()->where('committee_members.id', $invited->id)->exists());
-        $this->assertFalse($meeting->invitedMembers()->where('committee_members.id', $notInvited->id)->exists());
+        $this->assertSame(MeetingAttendanceMode::CheckIn, $meeting->attendance_mode);
+        $this->assertTrue($meeting->allow_new_registration);
+    }
+
+    public function test_allow_new_registration_is_ignored_when_checkin_is_off(): void
+    {
+        $organization = Organization::factory()->create();
+        $meeting = Meeting::factory()->for($organization)->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Show::class, ['meeting' => $meeting])
+            ->set('attendanceMode', 'none')
+            ->set('allowNewRegistration', true)
+            ->call('saveAttendanceSettings');
+
+        $meeting->refresh();
+        $this->assertSame(MeetingAttendanceMode::None, $meeting->attendance_mode);
+        $this->assertFalse($meeting->allow_new_registration);
     }
 }

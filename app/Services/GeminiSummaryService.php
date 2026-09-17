@@ -117,7 +117,9 @@ class GeminiSummaryService
     private function buildConfirmedAttendeesInstruction(array $confirmedAttendees): string
     {
         $list = collect($confirmedAttendees)
-            ->map(fn (array $member) => "- {$member['name']} ({$member['position']})")
+            ->map(fn (array $member) => $member['position'] !== ''
+                ? "- {$member['name']} ({$member['position']})"
+                : "- {$member['name']}")
             ->implode("\n");
 
         return <<<INSTRUCTION

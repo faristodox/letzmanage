@@ -16,11 +16,12 @@ class MeetingCheckInTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function openCheckinMeeting(Organization $organization): Meeting
+    private function openCheckinMeeting(Organization $organization, bool $allowNewRegistration = false): Meeting
     {
         return Meeting::factory()->for($organization)->create([
             'attendance_mode' => MeetingAttendanceMode::CheckIn,
             'checkin_token' => 'test-token',
+            'allow_new_registration' => $allowNewRegistration,
         ]);
     }
 
@@ -40,13 +41,13 @@ class MeetingCheckInTest extends TestCase
             ->assertSet('matchedName', 'Ahmad Zaki')
             ->assertSet('matchedPosition', 'President');
 
-        $this->assertTrue($meeting->attendees()->where('committee_members.id', $committeeMember->id)->exists());
+        $this->assertTrue($meeting->attendees()->where('committee_member_id', $committeeMember->id)->exists());
     }
 
-    public function test_unrecognized_ic_number_shows_not_found(): void
+    public function test_unrecognized_ic_number_shows_not_found_when_registration_is_disabled(): void
     {
         $organization = Organization::factory()->create();
-        $meeting = $this->openCheckinMeeting($organization);
+        $meeting = $this->openCheckinMeeting($organization, allowNewRegistration: false);
         app(CurrentOrganization::class)->set($organization);
 
         Livewire::test(MeetingCheckIn::class, ['meeting' => $meeting])
@@ -74,43 +75,61 @@ class MeetingCheckInTest extends TestCase
             ->call('submit')
             ->assertSet('step', 'already');
 
-        $this->assertSame(1, $meeting->attendees()->where('committee_members.id', $committeeMember->id)->count());
+        $this->assertSame(1, $meeting->attendees()->where('committee_member_id', $committeeMember->id)->count());
     }
 
-    public function test_invitation_only_rejects_a_member_not_on_the_invite_list(): void
+    public function test_unrecognized_ic_with_registration_enabled_prompts_for_registration(): void
     {
         $organization = Organization::factory()->create();
-        $notInvited = CommitteeMember::factory()->for($organization)->create(['ic_number' => '901231145566']);
-        $meeting = Meeting::factory()->for($organization)->create([
-            'attendance_mode' => MeetingAttendanceMode::Invitation,
-            'checkin_token' => 'test-token',
-        ]);
+        $meeting = $this->openCheckinMeeting($organization, allowNewRegistration: true);
         app(CurrentOrganization::class)->set($organization);
 
         Livewire::test(MeetingCheckIn::class, ['meeting' => $meeting])
-            ->set('icNumber', '901231145566')
+            ->set('icNumber', '000000000000')
             ->call('submit')
-            ->assertSet('step', 'not_found');
+            ->assertSet('step', 'register');
 
-        $this->assertFalse($meeting->attendees()->where('committee_members.id', $notInvited->id)->exists());
+        $this->assertSame(0, $meeting->attendees()->count());
     }
 
-    public function test_invitation_only_accepts_an_invited_member(): void
+    public function test_completing_registration_records_a_guest_attendee(): void
     {
         $organization = Organization::factory()->create();
-        $invited = CommitteeMember::factory()->for($organization)->create(['ic_number' => '901231145566']);
-        $meeting = Meeting::factory()->for($organization)->create([
-            'attendance_mode' => MeetingAttendanceMode::Invitation,
-            'checkin_token' => 'test-token',
-        ]);
-        $meeting->invitedMembers()->attach($invited->id);
+        $meeting = $this->openCheckinMeeting($organization, allowNewRegistration: true);
         app(CurrentOrganization::class)->set($organization);
 
         Livewire::test(MeetingCheckIn::class, ['meeting' => $meeting])
-            ->set('icNumber', '901231145566')
+            ->set('icNumber', '000000000000')
             ->call('submit')
-            ->assertSet('step', 'success');
+            ->assertSet('step', 'register')
+            ->set('guestName', 'Guest Speaker')
+            ->set('guestPosition', 'Invited Guest')
+            ->call('submitRegistration')
+            ->assertSet('step', 'success')
+            ->assertSet('matchedName', 'Guest Speaker')
+            ->assertSet('matchedPosition', 'Invited Guest');
 
-        $this->assertTrue($meeting->attendees()->where('committee_members.id', $invited->id)->exists());
+        $attendee = $meeting->attendees()->first();
+        $this->assertNotNull($attendee);
+        $this->assertNull($attendee->committee_member_id);
+        $this->assertSame('Guest Speaker', $attendee->guest_name);
+        $this->assertSame('Invited Guest', $attendee->guest_position);
+        $this->assertSame('000000000000', $attendee->guest_ic_number);
+    }
+
+    public function test_registration_requires_a_name_but_not_a_position(): void
+    {
+        $organization = Organization::factory()->create();
+        $meeting = $this->openCheckinMeeting($organization, allowNewRegistration: true);
+        app(CurrentOrganization::class)->set($organization);
+
+        Livewire::test(MeetingCheckIn::class, ['meeting' => $meeting])
+            ->set('icNumber', '000000000000')
+            ->call('submit')
+            ->set('guestName', '')
+            ->call('submitRegistration')
+            ->assertHasErrors(['guestName']);
+
+        $this->assertSame(0, $meeting->attendees()->count());
     }
 }

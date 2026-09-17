@@ -15,8 +15,7 @@ class Show extends Component
 
     public string $attendanceMode = 'none';
 
-    /** @var array<int> */
-    public array $invitedMemberIds = [];
+    public bool $allowNewRegistration = false;
 
     public function mount(Meeting $meeting): void
     {
@@ -24,7 +23,7 @@ class Show extends Component
 
         $this->meeting = $meeting;
         $this->attendanceMode = $meeting->attendance_mode->value;
-        $this->invitedMemberIds = $meeting->invitedMembers()->pluck('committee_members.id')->all();
+        $this->allowNewRegistration = $meeting->allow_new_registration;
     }
 
     public function setLanguage(string $language): void
@@ -43,11 +42,8 @@ class Show extends Component
             'checkin_token' => $mode !== MeetingAttendanceMode::None
                 ? ($this->meeting->checkin_token ?: Str::random(32))
                 : $this->meeting->checkin_token,
+            'allow_new_registration' => $mode !== MeetingAttendanceMode::None && $this->allowNewRegistration,
         ]);
-
-        $this->meeting->invitedMembers()->sync(
-            $mode === MeetingAttendanceMode::Invitation ? $this->invitedMemberIds : []
-        );
     }
 
     public function currentMinutes(): ?string
@@ -97,8 +93,7 @@ class Show extends Component
         $this->meeting->refresh();
 
         return view('livewire.meetings.show', [
-            'committeeMembers' => auth()->user()->organization->committeeMembers()->orderBy('name')->get(),
-            'attendees' => $this->meeting->attendees()->orderByDesc('meeting_attendances.checked_in_at')->get(),
+            'attendees' => $this->meeting->attendees()->with('committeeMember')->orderByDesc('checked_in_at')->get(),
         ]);
     }
 }
