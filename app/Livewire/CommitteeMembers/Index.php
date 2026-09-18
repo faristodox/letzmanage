@@ -107,7 +107,7 @@ class Index extends Component
             ->paginate(15);
 
         $viewingAttendance = $this->viewingAttendanceForId
-            ? CommitteeMember::with(['attendedMeetings' => fn ($query) => $query->orderByDesc('meeting_attendances.checked_in_at')])
+            ? CommitteeMember::with(['attendedEvents' => fn ($query) => $query->orderByDesc('event_attendances.checked_in_at')])
                 ->find($this->viewingAttendanceForId)
             : null;
 

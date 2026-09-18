@@ -21,12 +21,12 @@ class CommitteeMember extends Model
     use BelongsToOrganization, HasFactory;
 
     /**
-     * Full history of meetings this member has checked into — surfaced from
-     * the Committee Members list for annual-report reference.
+     * Full history of Committee Meeting events this member has checked into
+     * — surfaced from the Committee Members list for annual-report reference.
      */
-    public function attendedMeetings(): BelongsToMany
+    public function attendedEvents(): BelongsToMany
     {
-        return $this->belongsToMany(Meeting::class, 'meeting_attendances')->withPivot('checked_in_at');
+        return $this->belongsToMany(Event::class, 'event_attendances')->withPivot('checked_in_at');
     }
 
     /**

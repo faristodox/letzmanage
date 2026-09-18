@@ -2,34 +2,32 @@
 
 namespace App\Livewire\Public;
 
-use App\Enums\MeetingAttendanceMode;
 use App\Models\CommitteeMember;
-use App\Models\Meeting;
+use App\Models\Event;
 use App\Models\Organization;
 use App\Support\CurrentOrganization;
 use Illuminate\Database\QueryException;
 use Livewire\Component;
 
 /**
- * Public, unauthenticated check-in for a committee/board meeting — a
+ * Public, unauthenticated check-in for a Committee Meeting-type Event — a
  * committee member scans the QR code or opens the check-in link and enters
  * their IC/MyKad number. If recognized against the Committee Members
- * roster, they're recorded as an attendee. If not, and the meeting allows
- * new registration, they can instead register on the spot with just a name
- * and (optional) position — recorded as a guest attendee, not added to the
+ * roster, they're recorded as an attendee. If not, and the event allows new
+ * registration, they can instead register on the spot with just a name and
+ * (optional) position — recorded as a guest attendee, not added to the
  * permanent roster. Confirmed check-ins feed GenerateMeetingMinutesJob's
- * Attendees section directly, replacing the transcript-guessing path for
- * meetings that use this.
+ * Attendees section directly for any Meeting linked to this event.
  *
  * Mirrors Livewire\Public\EventCheckIn's boot()-based re-scoping pattern:
- * the meeting's organization is only resolvable from the route on the
+ * the event's organization is only resolvable from the route on the
  * initial mount, so it's re-applied on every subsequent request too.
  */
-class MeetingCheckIn extends Component
+class CommitteeMeetingCheckIn extends Component
 {
     public ?int $organizationId = null;
 
-    public ?int $meetingId = null;
+    public ?int $eventId = null;
 
     public string $step = 'verify';
 
@@ -50,22 +48,22 @@ class MeetingCheckIn extends Component
         }
     }
 
-    public function mount(Meeting $meeting): void
+    public function mount(Event $event): void
     {
         $this->organizationId = app(CurrentOrganization::class)->id();
-        $this->meetingId = $meeting->id;
+        $this->eventId = $event->id;
     }
 
-    private function meeting(): Meeting
+    private function event(): Event
     {
-        return Meeting::findOrFail($this->meetingId);
+        return Event::findOrFail($this->eventId);
     }
 
     public function submit(): void
     {
-        $meeting = $this->meeting();
+        $event = $this->event();
 
-        if ($meeting->attendance_mode === MeetingAttendanceMode::None) {
+        if (! $event->checkin_enabled) {
             return;
         }
 
@@ -74,16 +72,16 @@ class MeetingCheckIn extends Component
         $committeeMember = CommitteeMember::query()->where('ic_number', trim($this->icNumber))->first();
 
         if (! $committeeMember) {
-            $this->step = $meeting->allow_new_registration ? 'register' : 'not_found';
+            $this->step = $event->allow_new_registration ? 'register' : 'not_found';
 
             return;
         }
 
-        $alreadyCheckedIn = $meeting->attendees()->where('committee_member_id', $committeeMember->id)->exists();
+        $alreadyCheckedIn = $event->attendees()->where('committee_member_id', $committeeMember->id)->exists();
 
         if (! $alreadyCheckedIn) {
             try {
-                $meeting->attendees()->create([
+                $event->attendees()->create([
                     'committee_member_id' => $committeeMember->id,
                     'checked_in_at' => now(),
                 ]);
@@ -99,9 +97,9 @@ class MeetingCheckIn extends Component
 
     public function submitRegistration(): void
     {
-        $meeting = $this->meeting();
+        $event = $this->event();
 
-        if (! $meeting->allow_new_registration) {
+        if (! $event->allow_new_registration) {
             return;
         }
 
@@ -110,7 +108,7 @@ class MeetingCheckIn extends Component
             'guestPosition' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $meeting->attendees()->create([
+        $event->attendees()->create([
             'guest_name' => $this->guestName,
             'guest_position' => $this->guestPosition ?: null,
             'guest_ic_number' => trim($this->icNumber) ?: null,
@@ -124,8 +122,8 @@ class MeetingCheckIn extends Component
 
     public function render()
     {
-        return view('livewire.public.meeting-checkin', [
-            'meeting' => $this->meeting(),
+        return view('livewire.public.committee-meeting-checkin', [
+            'event' => $this->event(),
         ]);
     }
 }

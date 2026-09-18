@@ -4,11 +4,13 @@ namespace App\Livewire\Events;
 
 use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
+use App\Enums\EventType;
 use App\Models\Event;
 use App\Models\EventForm;
 use App\Services\EventCalendarSyncService;
 use App\Services\EventCreationService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,6 +19,8 @@ class Index extends Component
     use WithPagination;
 
     public bool $showModal = false;
+
+    public string $type = 'event';
 
     public string $title = '';
 
@@ -41,14 +45,14 @@ class Index extends Component
     {
         $this->authorize('create', Event::class);
 
-        $this->reset(['title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
+        $this->reset(['type', 'title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
         $this->showModal = true;
     }
 
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
+        $this->reset(['type', 'title', 'startDate', 'startTime', 'endDate', 'endTime', 'location']);
         $this->resetValidation();
     }
 
@@ -57,6 +61,7 @@ class Index extends Component
         $this->authorize('create', Event::class);
 
         $data = $this->validate([
+            'type' => ['required', Rule::in(array_column(EventType::cases(), 'value'))],
             'title' => ['required', 'string', 'max:255'],
             'startDate' => ['nullable', 'date'],
             'startTime' => ['nullable', 'date_format:H:i'],
@@ -66,6 +71,7 @@ class Index extends Component
         ]);
 
         $registrationForm = $eventCreation->createWithRegistrationForm([
+            'type' => EventType::from($data['type']),
             'title' => $data['title'],
             'start_date' => $data['startDate'] ?: null,
             'start_time' => $data['startTime'] ?: null,

@@ -94,10 +94,10 @@
                     <p class="mt-1 text-sm text-slate-500">{{ $viewingAttendance->name }} ({{ $viewingAttendance->position }})</p>
 
                     <div class="mt-4 max-h-96 space-y-2 overflow-y-auto">
-                        @forelse ($viewingAttendance->attendedMeetings as $attendedMeeting)
+                        @forelse ($viewingAttendance->attendedEvents as $attendedEvent)
                             <div class="rounded-lg border border-slate-200 p-3">
-                                <p class="text-sm font-medium text-slate-900">{{ $attendedMeeting->title }}</p>
-                                <p class="text-xs text-slate-500">{{ \Illuminate\Support\Carbon::parse($attendedMeeting->pivot->checked_in_at)->format('d M Y, g:i A') }}</p>
+                                <p class="text-sm font-medium text-slate-900">{{ $attendedEvent->title }}</p>
+                                <p class="text-xs text-slate-500">{{ \Illuminate\Support\Carbon::parse($attendedEvent->pivot->checked_in_at)->format('d M Y, g:i A') }}</p>
                             </div>
                         @empty
                             <p class="text-sm text-slate-500">{{ __('No recorded attendance yet.') }}</p>

@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One confirmed attendee for a meeting, recorded via the public check-in
- * flow (Livewire\Public\MeetingCheckIn) — either a committee roster member
- * (committee_member_id set) or a walk-in guest recorded through "Allow new
- * registration" (committee_member_id null, guest_* filled in instead).
+ * One confirmed attendee for a Committee Meeting-type Event, recorded via
+ * the public check-in flow (Livewire\Public\CommitteeMeetingCheckIn) —
+ * either a committee roster member (committee_member_id set) or a walk-in
+ * guest recorded through "Allow new registration" (committee_member_id
+ * null, guest_* filled in instead).
  */
-#[Fillable(['meeting_id', 'committee_member_id', 'guest_name', 'guest_position', 'guest_ic_number', 'checked_in_at'])]
-class MeetingAttendance extends Model
+#[Fillable(['event_id', 'committee_member_id', 'guest_name', 'guest_position', 'guest_ic_number', 'checked_in_at'])]
+class EventAttendance extends Model
 {
     use HasFactory;
 
@@ -25,9 +26,9 @@ class MeetingAttendance extends Model
         ];
     }
 
-    public function meeting(): BelongsTo
+    public function event(): BelongsTo
     {
-        return $this->belongsTo(Meeting::class);
+        return $this->belongsTo(Event::class);
     }
 
     public function committeeMember(): BelongsTo

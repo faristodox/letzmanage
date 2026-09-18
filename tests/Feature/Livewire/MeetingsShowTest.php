@@ -2,9 +2,10 @@
 
 namespace Tests\Feature\Livewire;
 
-use App\Enums\MeetingAttendanceMode;
+use App\Enums\EventType;
 use App\Enums\RoleName;
 use App\Livewire\Meetings\Show;
+use App\Models\Event;
 use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
@@ -99,50 +100,25 @@ class MeetingsShowTest extends TestCase
             ->assertFileDownloaded('Usrah Session-transcript.txt');
     }
 
-    public function test_admin_can_enable_open_checkin(): void
+    public function test_points_to_the_linked_committee_meeting_events_attendance_panel(): void
     {
         $organization = Organization::factory()->create();
-        $meeting = Meeting::factory()->for($organization)->create();
+        $event = Event::factory()->for($organization)->create(['type' => EventType::CommitteeMeeting]);
+        $meeting = Meeting::factory()->for($organization)->create(['event_id' => $event->id]);
 
         Livewire::actingAs($this->admin($organization))
             ->test(Show::class, ['meeting' => $meeting])
-            ->set('attendanceMode', 'checkin')
-            ->call('saveAttendanceSettings');
-
-        $meeting->refresh();
-        $this->assertSame(MeetingAttendanceMode::CheckIn, $meeting->attendance_mode);
-        $this->assertNotNull($meeting->checkin_token);
+            ->assertSee('Attendance for this meeting is tracked on its linked event');
     }
 
-    public function test_admin_can_enable_allow_new_registration(): void
+    public function test_does_not_mention_attendance_tracking_for_a_plain_linked_event(): void
     {
         $organization = Organization::factory()->create();
-        $meeting = Meeting::factory()->for($organization)->create();
+        $event = Event::factory()->for($organization)->create(['type' => EventType::Event]);
+        $meeting = Meeting::factory()->for($organization)->create(['event_id' => $event->id]);
 
         Livewire::actingAs($this->admin($organization))
             ->test(Show::class, ['meeting' => $meeting])
-            ->set('attendanceMode', 'checkin')
-            ->set('allowNewRegistration', true)
-            ->call('saveAttendanceSettings');
-
-        $meeting->refresh();
-        $this->assertSame(MeetingAttendanceMode::CheckIn, $meeting->attendance_mode);
-        $this->assertTrue($meeting->allow_new_registration);
-    }
-
-    public function test_allow_new_registration_is_ignored_when_checkin_is_off(): void
-    {
-        $organization = Organization::factory()->create();
-        $meeting = Meeting::factory()->for($organization)->create();
-
-        Livewire::actingAs($this->admin($organization))
-            ->test(Show::class, ['meeting' => $meeting])
-            ->set('attendanceMode', 'none')
-            ->set('allowNewRegistration', true)
-            ->call('saveAttendanceSettings');
-
-        $meeting->refresh();
-        $this->assertSame(MeetingAttendanceMode::None, $meeting->attendance_mode);
-        $this->assertFalse($meeting->allow_new_registration);
+            ->assertDontSee('Attendance for this meeting is tracked on its linked event');
     }
 }

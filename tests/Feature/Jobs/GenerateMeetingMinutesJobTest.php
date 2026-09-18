@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Enums\EventType;
 use App\Enums\MeetingStatus;
 use App\Jobs\GenerateMeetingMinutesJob;
 use App\Models\CommitteeMember;
+use App\Models\Event;
 use App\Models\Meeting;
 use App\Models\Organization;
 use App\Models\User;
@@ -33,12 +35,13 @@ class GenerateMeetingMinutesJobTest extends TestCase
             );
     }
 
-    private function summarizingMeeting(Organization $organization, User $creator): Meeting
+    private function summarizingMeeting(Organization $organization, User $creator, ?int $eventId = null): Meeting
     {
         return app(CurrentOrganization::class)->runFor(
             $organization,
             fn () => Meeting::factory()->for($organization)->create([
                 'created_by' => $creator->id,
+                'event_id' => $eventId,
                 'status' => MeetingStatus::Summarizing,
                 'transcript' => 'Faris: hello. Ahmad: hi.',
                 'minutes' => null,
@@ -140,8 +143,9 @@ class GenerateMeetingMinutesJobTest extends TestCase
         $creator = User::factory()->create(['organization_id' => $organization->id]);
         CommitteeMember::factory()->for($organization)->create(['name' => 'Someone Else', 'position' => 'Treasurer']);
         $checkedIn = CommitteeMember::factory()->for($organization)->create(['name' => 'Ahmad Zaki', 'position' => 'President']);
-        $meeting = $this->summarizingMeeting($organization, $creator);
-        $meeting->attendees()->create(['committee_member_id' => $checkedIn->id, 'checked_in_at' => now()]);
+        $event = Event::factory()->for($organization)->create(['type' => EventType::CommitteeMeeting]);
+        $meeting = $this->summarizingMeeting($organization, $creator, $event->id);
+        $event->attendees()->create(['committee_member_id' => $checkedIn->id, 'checked_in_at' => now()]);
 
         $this->runJob($organization->id, $meeting->id);
 
@@ -165,8 +169,9 @@ class GenerateMeetingMinutesJobTest extends TestCase
 
         $organization = Organization::factory()->create();
         $creator = User::factory()->create(['organization_id' => $organization->id]);
-        $meeting = $this->summarizingMeeting($organization, $creator);
-        $meeting->attendees()->create(['guest_name' => 'Guest Speaker', 'guest_position' => null, 'checked_in_at' => now()]);
+        $event = Event::factory()->for($organization)->create(['type' => EventType::CommitteeMeeting]);
+        $meeting = $this->summarizingMeeting($organization, $creator, $event->id);
+        $event->attendees()->create(['guest_name' => 'Guest Speaker', 'guest_position' => null, 'checked_in_at' => now()]);
 
         $this->runJob($organization->id, $meeting->id);
 

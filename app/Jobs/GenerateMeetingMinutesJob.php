@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\EventType;
 use App\Enums\MeetingStatus;
 use App\Models\Meeting;
 use App\Models\Organization;
@@ -46,7 +47,7 @@ class GenerateMeetingMinutesJob implements ShouldQueue
         }
 
         $currentOrganization->runFor($organization, function () use ($organization, $gemini, $meetings): void {
-            $meeting = Meeting::with('creator')->find($this->meetingId);
+            $meeting = Meeting::with(['creator', 'event'])->find($this->meetingId);
 
             if (! $meeting) {
                 return;
@@ -57,11 +58,7 @@ class GenerateMeetingMinutesJob implements ShouldQueue
                 ->map(fn ($member) => ['name' => $member->name, 'position' => $member->position])
                 ->all();
 
-            $confirmedAttendees = $meeting->attendees()
-                ->with('committeeMember')
-                ->get()
-                ->map(fn ($attendee) => ['name' => $attendee->displayName(), 'position' => (string) $attendee->displayPosition()])
-                ->all();
+            $confirmedAttendees = $this->confirmedAttendeesFor($meeting);
 
             $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title, $committeeMembers, $confirmedAttendees);
 
@@ -73,6 +70,29 @@ class GenerateMeetingMinutesJob implements ShouldQueue
 
             $meetings->notifyReady($meeting);
         });
+    }
+
+    /**
+     * Attendance now lives on the Meeting's linked Event (Committee Meeting
+     * type only) rather than on the Meeting itself — a standalone meeting,
+     * or one linked to a plain Event, simply has no confirmed attendees and
+     * falls back to the committee-roster cross-check in the prompt instead.
+     *
+     * @return array<int, array{name: string, position: string}>
+     */
+    private function confirmedAttendeesFor(Meeting $meeting): array
+    {
+        $event = $meeting->event;
+
+        if (! $event || $event->type !== EventType::CommitteeMeeting) {
+            return [];
+        }
+
+        return $event->attendees()
+            ->with('committeeMember')
+            ->get()
+            ->map(fn ($attendee) => ['name' => $attendee->displayName(), 'position' => (string) $attendee->displayPosition()])
+            ->all();
     }
 
     /**

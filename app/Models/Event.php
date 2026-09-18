@@ -6,6 +6,7 @@ use App\Contracts\GoogleCalendarSyncable;
 use App\Enums\EventFormType;
 use App\Enums\EventStatus;
 use App\Enums\EventTransactionType;
+use App\Enums\EventType;
 use App\Models\Concerns\BelongsToOrganization;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-#[Fillable(['organization_id', 'title', 'slug', 'description', 'banner_path', 'status', 'created_by', 'start_date', 'start_time', 'end_date', 'end_time', 'location', 'google_event_id'])]
+#[Fillable(['organization_id', 'type', 'title', 'slug', 'description', 'banner_path', 'status', 'created_by', 'start_date', 'start_time', 'end_date', 'end_time', 'location', 'google_event_id', 'checkin_enabled', 'checkin_token', 'allow_new_registration'])]
 class Event extends Model implements GoogleCalendarSyncable
 {
     use BelongsToOrganization, HasFactory;
@@ -25,9 +26,12 @@ class Event extends Model implements GoogleCalendarSyncable
     protected function casts(): array
     {
         return [
+            'type' => EventType::class,
             'status' => EventStatus::class,
             'start_date' => 'date',
             'end_date' => 'date',
+            'checkin_enabled' => 'boolean',
+            'allow_new_registration' => 'boolean',
         ];
     }
 
@@ -49,6 +53,15 @@ class Event extends Model implements GoogleCalendarSyncable
     public function meetings(): HasMany
     {
         return $this->hasMany(Meeting::class);
+    }
+
+    /**
+     * Confirmed attendees for a Committee Meeting-type event's check-in
+     * (see App\Models\EventAttendance) — meaningless for a plain Event.
+     */
+    public function attendees(): HasMany
+    {
+        return $this->hasMany(EventAttendance::class);
     }
 
     public function transactions(): HasMany

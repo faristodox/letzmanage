@@ -2,10 +2,11 @@
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\EventType;
 use App\Enums\RoleName;
 use App\Livewire\CommitteeMembers\Index;
 use App\Models\CommitteeMember;
-use App\Models\Meeting;
+use App\Models\Event;
 use App\Models\Organization;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -111,8 +112,8 @@ class CommitteeMembersIndexTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $committeeMember = CommitteeMember::factory()->for($organization)->create();
-        $meeting = Meeting::factory()->for($organization)->create(['title' => 'Board Meeting Q1']);
-        $meeting->attendees()->create(['committee_member_id' => $committeeMember->id, 'checked_in_at' => now()]);
+        $event = Event::factory()->for($organization)->create(['type' => EventType::CommitteeMeeting, 'title' => 'Board Meeting Q1']);
+        $event->attendees()->create(['committee_member_id' => $committeeMember->id, 'checked_in_at' => now()]);
 
         Livewire::actingAs($this->admin($organization))
             ->test(Index::class)

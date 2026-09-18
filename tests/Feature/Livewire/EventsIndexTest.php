@@ -4,6 +4,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
+use App\Enums\EventType;
 use App\Enums\RoleName;
 use App\Livewire\Events\Index;
 use App\Models\Event;
@@ -51,6 +52,25 @@ class EventsIndexTest extends TestCase
         $this->assertNotNull($registrationForm);
         $this->assertSame(EventFormStatus::Draft, $registrationForm->status);
         $this->assertSame($admin->id, $registrationForm->created_by);
+        $this->assertSame(EventType::Event, $event->type);
+    }
+
+    public function test_admin_can_create_a_committee_meeting_event(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('type', 'committee_meeting')
+            ->set('title', 'Mesyuarat JKK')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $event = Event::where('title', 'Mesyuarat JKK')->first();
+        $this->assertNotNull($event);
+        $this->assertSame(EventType::CommitteeMeeting, $event->type);
     }
 
     public function test_admin_can_set_the_schedule_and_location_when_creating_an_event(): void

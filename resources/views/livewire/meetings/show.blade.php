@@ -28,7 +28,14 @@
             <div>
                 <h2 class="text-lg font-semibold text-slate-900">{{ $meeting->title }}</h2>
                 @if ($meeting->event)
-                    <p class="mt-0.5 text-sm text-slate-500">{{ __('Linked to') }}: {{ $meeting->event->title }}</p>
+                    <p class="mt-0.5 text-sm text-slate-500">
+                        {{ __('Linked to') }}:
+                        @if ($meeting->event->registrationForm)
+                            <a href="{{ route('event-forms.builder', $meeting->event->registrationForm) }}" wire:navigate class="font-medium text-indigo-600 hover:text-indigo-700">{{ $meeting->event->title }}</a>
+                        @else
+                            {{ $meeting->event->title }}
+                        @endif
+                    </p>
                 @endif
             </div>
             <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $statusColors[$meeting->status->value] }}">
@@ -65,58 +72,14 @@
         @endif
     </div>
 
-    <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="text-sm font-semibold text-slate-900">{{ __('Attendance') }}</h3>
-        <p class="mt-1 text-sm text-slate-500">{{ __('Let committee/board members check in themselves — confirmed attendance replaces guesswork from the transcript in the Minutes of Meeting.') }}</p>
-
-        <form wire:submit="saveAttendanceSettings" class="mt-4 space-y-4">
-            <div>
-                <x-input-label for="attendance_mode" :value="__('Check-in mode')" />
-                <select wire:model.live="attendanceMode" id="attendance_mode" class="mt-1 block w-full max-w-xs rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="none">{{ __('Off') }}</option>
-                    <option value="checkin">{{ __('Open check-in') }}</option>
-                </select>
-            </div>
-
-            @if ($attendanceMode === 'checkin')
-                <label class="flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" wire:model="allowNewRegistration" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                    {{ __('Allow new registration') }}
-                </label>
-                <p class="text-xs text-slate-400">{{ __('If someone\'s IC number isn\'t on the Committee Members roster, let them check in by entering their name and position instead of being turned away.') }}</p>
+    @if ($meeting->event && $meeting->event->type->value === 'committee_meeting')
+        <p class="mt-4 text-sm text-slate-500">
+            {{ __('Attendance for this meeting is tracked on its linked event —') }}
+            @if ($meeting->event->registrationForm)
+                <a href="{{ route('event-forms.builder', $meeting->event->registrationForm) }}" wire:navigate class="font-medium text-indigo-600 hover:text-indigo-700">{{ __('open its Attendance panel →') }}</a>
             @endif
-
-            <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
-        </form>
-
-        @if ($meeting->attendance_mode->value !== 'none' && $meeting->checkInUrl())
-            <div class="mt-6 border-t border-slate-100 pt-4">
-                <p class="text-sm font-medium text-slate-700">{{ __('Check-in link') }}</p>
-                <a href="{{ $meeting->checkInUrl() }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-700 break-all">{{ $meeting->checkInUrl() }}</a>
-
-                <div class="mt-3" x-data="qrCanvas(@js($meeting->checkInUrl()))" wire:ignore>
-                    <canvas x-ref="canvas" class="rounded-lg bg-white p-2 shadow-sm"></canvas>
-                    <button type="button" @click="download()" class="mt-2 block text-xs font-semibold text-indigo-600 hover:text-indigo-700">{{ __('Download QR') }}</button>
-                </div>
-
-                <p class="mt-4 text-sm font-medium text-slate-700">{{ __('Checked in') }} ({{ $attendees->count() }})</p>
-                @forelse ($attendees as $attendee)
-                    <p class="mt-1 text-sm text-slate-600">
-                        {{ $attendee->displayName() }}
-                        @if ($attendee->displayPosition())
-                            <span class="text-slate-400">({{ $attendee->displayPosition() }})</span>
-                        @endif
-                        @unless ($attendee->committee_member_id)
-                            <span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ __('Guest') }}</span>
-                        @endunless
-                        — {{ $attendee->checked_in_at->format('d M Y, g:i A') }}
-                    </p>
-                @empty
-                    <p class="mt-1 text-sm text-slate-500">{{ __('No one has checked in yet.') }}</p>
-                @endforelse
-            </div>
-        @endif
-    </div>
+        </p>
+    @endif
 
     @if ($meeting->minutes)
         <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

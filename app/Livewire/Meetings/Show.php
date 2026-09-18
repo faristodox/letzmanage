@@ -2,9 +2,7 @@
 
 namespace App\Livewire\Meetings;
 
-use App\Enums\MeetingAttendanceMode;
 use App\Models\Meeting;
-use Illuminate\Support\Str;
 use Livewire\Component;
 
 class Show extends Component
@@ -13,37 +11,16 @@ class Show extends Component
 
     public string $language = 'en';
 
-    public string $attendanceMode = 'none';
-
-    public bool $allowNewRegistration = false;
-
     public function mount(Meeting $meeting): void
     {
         $this->authorize('view', $meeting);
 
         $this->meeting = $meeting;
-        $this->attendanceMode = $meeting->attendance_mode->value;
-        $this->allowNewRegistration = $meeting->allow_new_registration;
     }
 
     public function setLanguage(string $language): void
     {
         $this->language = $language === 'ms' ? 'ms' : 'en';
-    }
-
-    public function saveAttendanceSettings(): void
-    {
-        $this->authorize('update', $this->meeting);
-
-        $mode = MeetingAttendanceMode::tryFrom($this->attendanceMode) ?? MeetingAttendanceMode::None;
-
-        $this->meeting->update([
-            'attendance_mode' => $mode,
-            'checkin_token' => $mode !== MeetingAttendanceMode::None
-                ? ($this->meeting->checkin_token ?: Str::random(32))
-                : $this->meeting->checkin_token,
-            'allow_new_registration' => $mode !== MeetingAttendanceMode::None && $this->allowNewRegistration,
-        ]);
     }
 
     public function currentMinutes(): ?string
@@ -92,8 +69,6 @@ class Show extends Component
         // point polling a Meeting that's already Ready or Failed.
         $this->meeting->refresh();
 
-        return view('livewire.meetings.show', [
-            'attendees' => $this->meeting->attendees()->with('committeeMember')->orderByDesc('checked_in_at')->get(),
-        ]);
+        return view('livewire.meetings.show');
     }
 }

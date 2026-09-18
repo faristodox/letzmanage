@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ __('Check-in') }} - {{ $meeting->title }}</title>
+        <title>{{ __('Check-in') }} - {{ $event->title }}</title>
         <link rel="icon" type="image/png" href="{{ asset('favicon.svg') }}">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -18,11 +18,11 @@
             <div class="w-full max-w-md">
                 <div class="text-center">
                     <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">{{ __('Meeting Check-in') }}</h1>
-                    <p class="mt-2 text-slate-600">{{ $meeting->title }}</p>
+                    <p class="mt-2 text-slate-600">{{ $event->title }}</p>
                 </div>
 
                 <div class="mt-10">
-                    <livewire:public.meeting-checkin :meeting="$meeting" />
+                    <livewire:public.committee-meeting-checkin :event="$event" />
                 </div>
             </div>
         </main>

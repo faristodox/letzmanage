@@ -17,7 +17,7 @@ use App\Models\EventForm;
 class EventCreationService
 {
     /**
-     * @param  array{title: string, start_date?: ?string, start_time?: ?string, end_date?: ?string, end_time?: ?string, location?: ?string}  $attributes
+     * @param  array{title: string, type?: \App\Enums\EventType, start_date?: ?string, start_time?: ?string, end_date?: ?string, end_time?: ?string, location?: ?string}  $attributes
      */
     public function createWithRegistrationForm(array $attributes): EventForm
     {

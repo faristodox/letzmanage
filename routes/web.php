@@ -2,8 +2,8 @@
 
 use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
+use App\Enums\EventType;
 use App\Enums\FormStatus;
-use App\Enums\MeetingAttendanceMode;
 use App\Enums\OrganizationStatus;
 use App\Http\Controllers\ChipWebhookController;
 use App\Http\Controllers\GoogleCalendarConnectionController;
@@ -101,6 +101,10 @@ Route::get('events/{organization:slug}/{eventSlug}/feedback', function (Organiza
     return view('public.event-registration', ['organization' => $organization, 'event' => $event, 'eventForm' => $eventForm]);
 })->name('event-feedback.show');
 
+// Branches by the event's own type: a plain Event's check-in verifies
+// against registration responses (existing EventForm-based flow); a
+// Committee Meeting's check-in verifies against the Committee Members
+// roster by IC number instead (no registration form involved at all).
 Route::get('events/{organization:slug}/{eventSlug}/check-in', function (Organization $organization, string $eventSlug) {
     abort_if($organization->status === OrganizationStatus::Suspended, 404);
 
@@ -108,6 +112,14 @@ Route::get('events/{organization:slug}/{eventSlug}/check-in', function (Organiza
         ->where('organization_id', $organization->id)
         ->where('slug', $eventSlug)
         ->firstOrFail();
+
+    if ($event->type === EventType::CommitteeMeeting) {
+        abort_unless($event->checkin_enabled, 404);
+
+        app(CurrentOrganization::class)->set($organization);
+
+        return view('public.committee-meeting-checkin', ['organization' => $organization, 'event' => $event]);
+    }
 
     $eventForm = EventForm::query()->acrossOrganizations()
         ->where('event_id', $event->id)
@@ -142,20 +154,6 @@ Route::get('form/{organization:slug}/{formSlug}', function (Organization $organi
 
     return view('public.form-submission', ['organization' => $organization, 'form' => $form]);
 })->name('form-submission.show');
-
-// Public, unauthenticated check-in for a committee/board meeting — the URL
-// carries an unguessable random token (not the sequential meeting id) since
-// Meetings otherwise have zero public exposure. A meeting whose check-in has
-// been switched off (or never enabled) 404s rather than revealing anything.
-Route::get('meetings/checkin/{token}', function (string $token) {
-    $meeting = Meeting::query()->acrossOrganizations()->where('checkin_token', $token)->first();
-
-    abort_if(! $meeting || $meeting->attendance_mode === MeetingAttendanceMode::None, 404);
-
-    app(CurrentOrganization::class)->set($meeting->organization);
-
-    return view('public.meeting-checkin', ['meeting' => $meeting]);
-})->name('meetings.checkin.show');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

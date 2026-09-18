@@ -21,6 +21,7 @@
             <thead class="bg-slate-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Title') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Type') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Status') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Responses') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Created') }}</th>
@@ -32,9 +33,11 @@
                     @php
                         $registrationForm = $event->registrationForm;
                         $feedbackForm = $event->feedbackForm;
+                        $isCommitteeMeeting = $event->type->value === 'committee_meeting';
                     @endphp
                     <tr wire:key="event-{{ $event->id }}" class="hover:bg-slate-50">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $event->title }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $isCommitteeMeeting ? __('Committee Meeting') : __('Event') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
                             @php
                                 $statusColors = [
@@ -47,22 +50,26 @@
                                 {{ ucfirst($event->status->value) }}
                             </span>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $registrationForm?->responses_count ?? 0 }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $isCommitteeMeeting ? '—' : ($registrationForm?->responses_count ?? 0) }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $event->created_at->format('d M Y') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium space-x-3">
                             @if ($registrationForm)
                                 <a href="{{ route('event-forms.builder', $registrationForm) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</a>
-                                <a href="{{ route('event-forms.builder', $registrationForm) }}#form-settings" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Registration') }}</a>
-                                @if ($feedbackForm)
-                                    <a href="{{ route('event-forms.builder', $feedbackForm) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</a>
-                                @else
-                                    <button type="button" wire:click="createFeedbackForm({{ $event->id }})" class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</button>
-                                @endif
+                                @unless ($isCommitteeMeeting)
+                                    <a href="{{ route('event-forms.builder', $registrationForm) }}#form-settings" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Registration') }}</a>
+                                    @if ($feedbackForm)
+                                        <a href="{{ route('event-forms.builder', $feedbackForm) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</a>
+                                    @else
+                                        <button type="button" wire:click="createFeedbackForm({{ $event->id }})" class="text-indigo-600 hover:text-indigo-700">{{ __('Feedback') }}</button>
+                                    @endif
+                                @endunless
                             @endif
-                            @can('viewFinances', $event)
-                                <a href="{{ route('events.finances', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Financial') }}</a>
-                                <a href="{{ route('events.report', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Report') }}</a>
-                            @endcan
+                            @if (! $isCommitteeMeeting)
+                                @can('viewFinances', $event)
+                                    <a href="{{ route('events.finances', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Financial') }}</a>
+                                    <a href="{{ route('events.report', $event) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Report') }}</a>
+                                @endcan
+                            @endif
                             @can('viewAny', App\Models\Meeting::class)
                                 <a href="{{ route('meetings.index', ['event' => $event->id]) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Meetings') }}</a>
                             @endcan
@@ -73,7 +80,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No events yet.') }}</td>
+                        <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No events yet.') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -92,7 +99,20 @@
             <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-lg">
                 <form wire:submit="save" class="p-6 sm:p-8">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('New Event') }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">{{ __("You'll add registration fields on the next screen.") }}</p>
+                    <p class="mt-1 text-sm text-slate-500">
+                        {{ $type === 'committee_meeting' ? __("You'll set up attendance check-in on the next screen.") : __("You'll add registration fields on the next screen.") }}
+                    </p>
+
+                    <div class="mt-4 flex gap-1 rounded-lg bg-slate-100 p-1">
+                        <button type="button" wire:click="$set('type', 'event')"
+                            class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'event' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                            {{ __('Event') }}
+                        </button>
+                        <button type="button" wire:click="$set('type', 'committee_meeting')"
+                            class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'committee_meeting' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                            {{ __('Committee Meeting') }}
+                        </button>
+                    </div>
 
                     <div class="mt-4">
                         <x-input-label for="title" :value="__('Title')" />

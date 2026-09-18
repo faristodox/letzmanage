@@ -8,10 +8,12 @@ use App\Enums\EventFormStatus;
 use App\Enums\EventFormType;
 use App\Enums\EventPaymentMethod;
 use App\Enums\EventStatus;
+use App\Enums\EventType;
 use App\Models\EventForm;
 use App\Models\EventFormField;
 use App\Services\EventCalendarSyncService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -82,6 +84,10 @@ class Builder extends Component
 
     public bool $checkinOnsiteRegistrationEnabled = false;
 
+    public bool $committeeCheckinEnabled = false;
+
+    public bool $committeeAllowNewRegistration = false;
+
     public bool $confirmingDeleteFeedbackForm = false;
 
     public bool $paymentEnabled = false;
@@ -127,6 +133,9 @@ class Builder extends Component
         $this->checkinVerificationFieldIds = $eventForm->checkin_verification_field_ids ?? [];
         $this->checkinVerificationMode = $eventForm->checkin_verification_mode?->value ?? CheckInVerificationMode::All->value;
         $this->checkinOnsiteRegistrationEnabled = (bool) $eventForm->checkin_onsite_registration_enabled;
+
+        $this->committeeCheckinEnabled = (bool) $event->checkin_enabled;
+        $this->committeeAllowNewRegistration = (bool) $event->allow_new_registration;
 
         $this->paymentEnabled = (bool) $eventForm->payment_enabled;
         $this->paymentMethods = $eventForm->payment_methods ?? [];
@@ -231,6 +240,28 @@ class Builder extends Component
         ]);
 
         session()->flash('status', __('Check-in settings saved.'));
+    }
+
+    public function isCommitteeMeeting(): bool
+    {
+        return $this->eventForm->event->type === EventType::CommitteeMeeting;
+    }
+
+    public function saveCommitteeCheckinSettings(): void
+    {
+        $this->authorize('update', $this->eventForm);
+
+        $event = $this->eventForm->event;
+
+        $event->update([
+            'checkin_enabled' => $this->committeeCheckinEnabled,
+            'checkin_token' => $this->committeeCheckinEnabled
+                ? ($event->checkin_token ?: Str::random(32))
+                : $event->checkin_token,
+            'allow_new_registration' => $this->committeeCheckinEnabled && $this->committeeAllowNewRegistration,
+        ]);
+
+        session()->flash('status', __('Attendance settings saved.'));
     }
 
     public function hasResponses(): bool
@@ -584,6 +615,10 @@ class Builder extends Component
                 : null,
             'pricingEligibleFields' => $this->pricingEligibleFields(),
             'availablePaymentMethods' => $this->availablePaymentMethods(),
+            'isCommitteeMeeting' => $this->isCommitteeMeeting(),
+            'attendees' => $this->isCommitteeMeeting()
+                ? $this->eventForm->event->attendees()->with('committeeMember')->orderByDesc('checked_in_at')->get()
+                : collect(),
         ]);
     }
 }

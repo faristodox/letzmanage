@@ -38,7 +38,7 @@
         </div>
     @endif
 
-    @if ($eventForm->status->value === 'published' && $event->organization)
+    @if (! $isCommitteeMeeting && $eventForm->status->value === 'published' && $event->organization)
         @php $publicFormUrl = $isFeedbackForm ? $event->feedbackUrl() : $event->publicUrl(); @endphp
         <div
             x-data="{
@@ -82,7 +82,9 @@
     <!-- Event Settings -->
     <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="text-sm font-semibold text-slate-900">{{ __('Event Settings') }}</h2>
-        <p class="mt-0.5 text-xs text-slate-500">{{ __('Shared across the registration form, check-in, and feedback survey for this event.') }}</p>
+        <p class="mt-0.5 text-xs text-slate-500">
+            {{ $isCommitteeMeeting ? __('Title, schedule, and location for this committee meeting.') : __('Shared across the registration form, check-in, and feedback survey for this event.') }}
+        </p>
 
         <form wire:submit="saveEventSettings" class="mt-4 space-y-4">
             <div>
@@ -171,84 +173,86 @@
         </form>
     </div>
 
-    <!-- Form Settings -->
-    <div id="form-settings" class="scroll-mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 class="text-sm font-semibold text-slate-900">
-            {{ $isFeedbackForm ? __('Feedback Survey Settings') : __('Registration Form Settings') }}
-        </h2>
-        @unless ($isFeedbackForm)
-            <p class="mt-0.5 text-xs text-slate-500">{{ __('Controls whether people can currently register — separate from the event\'s own status above.') }}</p>
-        @endunless
+    @unless ($isCommitteeMeeting)
+        <!-- Form Settings -->
+        <div id="form-settings" class="scroll-mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">
+                {{ $isFeedbackForm ? __('Feedback Survey Settings') : __('Registration Form Settings') }}
+            </h2>
+            @unless ($isFeedbackForm)
+                <p class="mt-0.5 text-xs text-slate-500">{{ __('Controls whether people can currently register — separate from the event\'s own status above.') }}</p>
+            @endunless
 
-        <form wire:submit="saveFormSettings" class="mt-4 space-y-4">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <x-input-label for="status" :value="__('Status')" />
-                    <select wire:model="status" id="status" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        @foreach ($statuses as $statusOption)
-                            <option value="{{ $statusOption->value }}">{{ ucfirst($statusOption->value) }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('status')" class="mt-2" />
-                </div>
-
-                <div>
-                    <x-input-label for="closes_at" :value="__('Closes At (optional)')" />
-                    <input wire:model="closes_at" id="closes_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <x-input-error :messages="$errors->get('closes_at')" class="mt-2" />
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <x-primary-button type="submit">{{ __('Save Form Settings') }}</x-primary-button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Fields -->
-    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-slate-900">{{ __('Fields') }}</h2>
-            <x-secondary-button wire:click="addField">{{ __('Add Field') }}</x-secondary-button>
-        </div>
-
-        @if ($this->hasResponses())
-            <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                {{ __('This form already has responses, so existing fields can no longer be deleted or have their type/options changed — only new fields may be added.') }}
-            </p>
-        @endif
-
-        <div class="mt-4 divide-y divide-slate-100">
-            @forelse ($fields as $index => $field)
-                <div wire:key="field-{{ $field->id }}" class="flex items-center justify-between gap-4 py-3">
-                    <div class="min-w-0">
-                        <p class="text-sm font-medium text-slate-900">
-                            {{ $field->label }}
-                            @if ($field->required)
-                                <span class="text-red-500">*</span>
-                            @endif
-                        </p>
-                        <p class="text-xs text-slate-500">
-                            {{ ucfirst($field->type->value) }}
-                            @if ($field->type->isChoice())
-                                &middot; {{ implode(', ', $field->options ?? []) }}
-                            @endif
-                        </p>
+            <form wire:submit="saveFormSettings" class="mt-4 space-y-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <x-input-label for="status" :value="__('Status')" />
+                        <select wire:model="status" id="status" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @foreach ($statuses as $statusOption)
+                                <option value="{{ $statusOption->value }}">{{ ucfirst($statusOption->value) }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('status')" class="mt-2" />
                     </div>
-                    <div class="flex shrink-0 items-center gap-3 text-sm font-medium">
-                        <button type="button" wire:click="moveFieldUp({{ $field->id }})" @if ($index === 0) disabled @endif class="text-slate-400 hover:text-slate-600 disabled:opacity-30">&uarr;</button>
-                        <button type="button" wire:click="moveFieldDown({{ $field->id }})" @if ($index === $fields->count() - 1) disabled @endif class="text-slate-400 hover:text-slate-600 disabled:opacity-30">&darr;</button>
-                        <button type="button" wire:click="editField({{ $field->id }})" class="text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
-                        <button type="button" wire:click="confirmDeleteField({{ $field->id }})" @if ($this->hasResponses()) disabled @endif class="text-red-600 hover:text-red-700 disabled:opacity-30">{{ __('Delete') }}</button>
+
+                    <div>
+                        <x-input-label for="closes_at" :value="__('Closes At (optional)')" />
+                        <input wire:model="closes_at" id="closes_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <x-input-error :messages="$errors->get('closes_at')" class="mt-2" />
                     </div>
                 </div>
-            @empty
-                <p class="py-6 text-center text-sm text-slate-500">{{ __('No fields yet — add your first one above.') }}</p>
-            @endforelse
-        </div>
-    </div>
 
-    @if (! $isFeedbackForm)
+                <div class="flex justify-end">
+                    <x-primary-button type="submit">{{ __('Save Form Settings') }}</x-primary-button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Fields -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-slate-900">{{ __('Fields') }}</h2>
+                <x-secondary-button wire:click="addField">{{ __('Add Field') }}</x-secondary-button>
+            </div>
+
+            @if ($this->hasResponses())
+                <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    {{ __('This form already has responses, so existing fields can no longer be deleted or have their type/options changed — only new fields may be added.') }}
+                </p>
+            @endif
+
+            <div class="mt-4 divide-y divide-slate-100">
+                @forelse ($fields as $index => $field)
+                    <div wire:key="field-{{ $field->id }}" class="flex items-center justify-between gap-4 py-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-900">
+                                {{ $field->label }}
+                                @if ($field->required)
+                                    <span class="text-red-500">*</span>
+                                @endif
+                            </p>
+                            <p class="text-xs text-slate-500">
+                                {{ ucfirst($field->type->value) }}
+                                @if ($field->type->isChoice())
+                                    &middot; {{ implode(', ', $field->options ?? []) }}
+                                @endif
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-3 text-sm font-medium">
+                            <button type="button" wire:click="moveFieldUp({{ $field->id }})" @if ($index === 0) disabled @endif class="text-slate-400 hover:text-slate-600 disabled:opacity-30">&uarr;</button>
+                            <button type="button" wire:click="moveFieldDown({{ $field->id }})" @if ($index === $fields->count() - 1) disabled @endif class="text-slate-400 hover:text-slate-600 disabled:opacity-30">&darr;</button>
+                            <button type="button" wire:click="editField({{ $field->id }})" class="text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
+                            <button type="button" wire:click="confirmDeleteField({{ $field->id }})" @if ($this->hasResponses()) disabled @endif class="text-red-600 hover:text-red-700 disabled:opacity-30">{{ __('Delete') }}</button>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-slate-500">{{ __('No fields yet — add your first one above.') }}</p>
+                @endforelse
+            </div>
+        </div>
+    @endunless
+
+    @if (! $isFeedbackForm && ! $isCommitteeMeeting)
         <!-- Payment -->
         <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="text-sm font-semibold text-slate-900">{{ __('Payment') }}</h2>
@@ -532,6 +536,61 @@
                 <x-primary-button type="submit">{{ __('Save Check-in Settings') }}</x-primary-button>
             </div>
         </form>
+        </div>
+    @endif
+
+    @if ($isCommitteeMeeting)
+        <!-- Attendance -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 class="text-sm font-semibold text-slate-900">{{ __('Attendance') }}</h2>
+            <p class="mt-0.5 text-xs text-slate-500">{{ __('Let committee/board members check in themselves — confirmed attendance replaces guesswork from the transcript in any linked meeting\'s Minutes of Meeting.') }}</p>
+
+            <form wire:submit="saveCommitteeCheckinSettings" class="mt-4 space-y-4">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" wire:model.live="committeeCheckinEnabled" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                    <span class="text-sm font-medium text-slate-700">{{ __('Enable check-in') }}</span>
+                </label>
+
+                @if ($committeeCheckinEnabled)
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" wire:model="committeeAllowNewRegistration" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                        {{ __('Allow new registration') }}
+                    </label>
+                    <p class="text-xs text-slate-400">{{ __('If someone\'s IC number isn\'t on the Committee Members roster, let them check in by entering their name and position instead of being turned away.') }}</p>
+                @endif
+
+                <div class="flex justify-end">
+                    <x-primary-button type="submit">{{ __('Save Check-in Settings') }}</x-primary-button>
+                </div>
+            </form>
+
+            @if ($event->checkin_enabled && $event->organization)
+                <div class="mt-6 border-t border-slate-100 pt-4">
+                    <p class="text-sm font-medium text-slate-700">{{ __('Check-in link') }}</p>
+                    <a href="{{ $event->checkinUrl() }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-700 break-all">{{ $event->checkinUrl() }}</a>
+
+                    <div class="mt-3" x-data="qrCanvas(@js($event->checkinUrl().'?src=qr'))" wire:ignore>
+                        <canvas x-ref="canvas" class="rounded-lg bg-white p-2 shadow-sm"></canvas>
+                        <button type="button" @click="download()" class="mt-2 block text-xs font-semibold text-indigo-600 hover:text-indigo-700">{{ __('Download QR') }}</button>
+                    </div>
+
+                    <p class="mt-4 text-sm font-medium text-slate-700">{{ __('Checked in') }} ({{ $attendees->count() }})</p>
+                    @forelse ($attendees as $attendee)
+                        <p class="mt-1 text-sm text-slate-600">
+                            {{ $attendee->displayName() }}
+                            @if ($attendee->displayPosition())
+                                <span class="text-slate-400">({{ $attendee->displayPosition() }})</span>
+                            @endif
+                            @unless ($attendee->committee_member_id)
+                                <span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">{{ __('Guest') }}</span>
+                            @endunless
+                            — {{ $attendee->checked_in_at->format('d M Y, g:i A') }}
+                        </p>
+                    @empty
+                        <p class="mt-1 text-sm text-slate-500">{{ __('No one has checked in yet.') }}</p>
+                    @endforelse
+                </div>
+            @endif
         </div>
     @endif
 
