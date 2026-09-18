@@ -15,6 +15,7 @@ use App\Models\Meeting;
 use App\Models\Organization;
 use App\Services\EventFormAnalyticsService;
 use App\Services\EventReportService;
+use App\Services\MeetingMinutesPrintService;
 use App\Support\CurrentOrganization;
 use Illuminate\Support\Facades\Route;
 
@@ -227,6 +228,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('meetings/{meeting}', fn (Meeting $meeting) => view('meetings.show', ['meeting' => $meeting]))
         ->name('meetings.show')->can('view', 'meeting');
+
+    Route::get('meetings/{meeting}/print', function (Meeting $meeting, MeetingMinutesPrintService $printService) {
+        $language = request()->query('lang') === 'ms' ? 'ms' : 'en';
+
+        return view('meetings.minutes-print', [
+            'meeting' => $meeting,
+            'language' => $language,
+            ...$printService->build($meeting, $language),
+        ]);
+    })->name('meetings.print')->can('view', 'meeting');
 
     Route::view('committee-members', 'committee-members.index')->name('committee-members.index');
 

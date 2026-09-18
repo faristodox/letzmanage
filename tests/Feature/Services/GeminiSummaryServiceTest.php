@@ -163,4 +163,74 @@ class GeminiSummaryServiceTest extends TestCase
                 && ! str_contains($prompt, 'Someone Else');
         });
     }
+
+    public function test_extract_agenda_items_parses_the_json_response(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => json_encode([
+                    'attendees' => [['name' => 'Ahmad Zaki', 'position' => 'President']],
+                    'agenda_items' => [['topic' => 'Ta\'aruf', 'sub_points' => ['Sesi perkenalan'], 'action_by' => 'Makluman', 'notes' => '']],
+                ])]]]]],
+            ]),
+        ]);
+
+        $data = app(GeminiSummaryService::class)->extractAgendaItems('Faris: hello.', 'Usrah Session');
+
+        $this->assertSame('Ahmad Zaki', $data['attendees'][0]['name']);
+        $this->assertSame("Ta'aruf", $data['agenda_items'][0]['topic']);
+        Http::assertSent(fn ($request) => str_contains($request['contents'][0]['parts'][0]['text'], 'ONLY a single valid JSON object'));
+    }
+
+    public function test_extract_agenda_items_strips_markdown_code_fences(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => "```json\n".json_encode([
+                    'attendees' => [],
+                    'agenda_items' => [],
+                ])."\n```"]]]]],
+            ]),
+        ]);
+
+        $data = app(GeminiSummaryService::class)->extractAgendaItems('Faris: hello.', 'Usrah Session');
+
+        $this->assertSame([], $data['attendees']);
+        $this->assertSame([], $data['agenda_items']);
+    }
+
+    public function test_extract_agenda_items_throws_on_invalid_json(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => 'not json at all']]]]],
+            ]),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        app(GeminiSummaryService::class)->extractAgendaItems('Faris: hello.', 'Usrah Session');
+    }
+
+    public function test_translate_agenda_items_preserves_shape(): void
+    {
+        $translated = [
+            'attendees' => [['name' => 'Ahmad Zaki', 'position' => 'Presiden']],
+            'agenda_items' => [['topic' => 'Perkenalan', 'sub_points' => ['Sesi perkenalan'], 'action_by' => 'Makluman', 'notes' => '']],
+        ];
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => json_encode($translated)]]]]],
+            ]),
+        ]);
+
+        $result = app(GeminiSummaryService::class)->translateAgendaItems([
+            'attendees' => [['name' => 'Ahmad Zaki', 'position' => 'President']],
+            'agenda_items' => [['topic' => 'Introduction', 'sub_points' => ['Introduction session'], 'action_by' => 'Info only', 'notes' => '']],
+        ], 'Malay (Bahasa Malaysia)');
+
+        $this->assertSame('Presiden', $result['attendees'][0]['position']);
+        $this->assertSame('Perkenalan', $result['agenda_items'][0]['topic']);
+    }
 }

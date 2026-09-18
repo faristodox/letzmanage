@@ -45,6 +45,35 @@ class GeminiSummaryService
         return $this->generate($this->buildTranslationPrompt($text, $targetLanguage));
     }
 
+    /**
+     * Structured data for the official Minutes of Meeting print template —
+     * a table-shaped agenda (topic/sub-points/responsible party) that the
+     * plain-text minutes can't be reliably sliced back into, plus a
+     * best-guess attendee list used only as a fallback on the print view
+     * when the meeting has no confirmed check-in data.
+     *
+     * @return array{attendees: array<int, array{name: string, position: string}>, agenda_items: array<int, array{topic: string, sub_points: array<int, string>, action_by: string, notes: string}>}
+     */
+    public function extractAgendaItems(string $transcript, string $meetingTitle): array
+    {
+        return $this->parseJson($this->generate($this->buildAgendaExtractionPrompt($transcript, $meetingTitle)));
+    }
+
+    /**
+     * Translates the structured agenda data above into another language,
+     * preserving its exact shape — mirrors translate()'s approach of
+     * translating an already-generated artifact rather than re-extracting.
+     *
+     * @param  array{attendees: array<int, array{name: string, position: string}>, agenda_items: array<int, array{topic: string, sub_points: array<int, string>, action_by: string, notes: string}>}  $data
+     * @return array{attendees: array<int, array{name: string, position: string}>, agenda_items: array<int, array{topic: string, sub_points: array<int, string>, action_by: string, notes: string}>}
+     */
+    public function translateAgendaItems(array $data, string $targetLanguage): array
+    {
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+
+        return $this->parseJson($this->generate($this->buildJsonTranslationPrompt($json, $targetLanguage)));
+    }
+
     private function generate(string $prompt): string
     {
         $apiKey = config('services.gemini.api_key');
@@ -137,5 +166,50 @@ class GeminiSummaryService
 
         {$text}
         PROMPT;
+    }
+
+    private function buildAgendaExtractionPrompt(string $transcript, string $meetingTitle): string
+    {
+        return <<<PROMPT
+        Analyze the following meeting transcript and output ONLY a single valid JSON object (no markdown code fences, no commentary before or after) with this exact shape:
+
+        {
+          "attendees": [{"name": "...", "position": "..."}],
+          "agenda_items": [{"topic": "...", "sub_points": ["...", "..."], "action_by": "...", "notes": "..."}]
+        }
+
+        "attendees": everyone identifiable as present, with their position/role if mentioned, otherwise an empty string for position.
+        "agenda_items": one entry per distinct topic discussed, in the order discussed. "sub_points" are the specific points raised under that topic, each as its own short string. "action_by" is who is responsible for follow-up on that topic (a name, role, or "Makluman" if it's informational only with no action needed). "notes" is any remark worth recording, or an empty string if none.
+
+        Meeting title: {$meetingTitle}
+
+        Transcript:
+        {$transcript}
+        PROMPT;
+    }
+
+    private function buildJsonTranslationPrompt(string $json, string $targetLanguage): string
+    {
+        return <<<PROMPT
+        Translate every text value in the following JSON into {$targetLanguage}. Keep the exact same JSON structure and keys unchanged — only translate the values. Output ONLY the resulting valid JSON (no markdown code fences, no commentary).
+
+        {$json}
+        PROMPT;
+    }
+
+    /**
+     * Gemini is asked for strict JSON but sometimes wraps it in ```json
+     * fences despite the instruction not to — strip those before decoding.
+     */
+    private function parseJson(string $text): array
+    {
+        $cleaned = trim(preg_replace('/^```(?:json)?|```$/m', '', trim($text)));
+        $decoded = json_decode($cleaned, true);
+
+        if (! is_array($decoded)) {
+            throw new RuntimeException('Gemini returned invalid JSON: '.$text);
+        }
+
+        return $decoded;
     }
 }

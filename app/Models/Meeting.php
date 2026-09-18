@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['organization_id', 'event_id', 'created_by', 'archived_file_id', 'title', 'status', 'audio_gcs_object', 'gcs_operation_name', 'transcript', 'minutes', 'minutes_ms', 'duration_seconds', 'failure_reason'])]
+#[Fillable(['organization_id', 'event_id', 'created_by', 'archived_file_id', 'title', 'status', 'audio_gcs_object', 'gcs_operation_name', 'transcript', 'minutes', 'minutes_ms', 'agenda_items', 'agenda_items_ms', 'duration_seconds', 'failure_reason'])]
 class Meeting extends Model
 {
     use BelongsToOrganization, HasFactory;
@@ -18,6 +18,8 @@ class Meeting extends Model
     {
         return [
             'status' => MeetingStatus::class,
+            'agenda_items' => 'array',
+            'agenda_items_ms' => 'array',
         ];
     }
 

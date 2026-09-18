@@ -98,7 +98,15 @@
                             </button>
                         </div>
                     @endif
-                    <button wire:click="downloadMinutes" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Download') }}</button>
+                    <x-dropdown align="right" width="w-56">
+                        <x-slot name="trigger">
+                            <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Download') }}</button>
+                        </x-slot>
+                        <x-slot name="content">
+                            <button type="button" wire:click="downloadMinutes" class="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">{{ __('Plain Text (.txt)') }}</button>
+                            <a href="{{ route('meetings.print', ['meeting' => $meeting, 'lang' => $language]) }}" target="_blank" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">{{ __('Official Template') }}</a>
+                        </x-slot>
+                    </x-dropdown>
                 </div>
             </div>
             <div class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $this->currentMinutes() }}</div>

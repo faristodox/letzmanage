@@ -61,10 +61,13 @@ class GenerateMeetingMinutesJob implements ShouldQueue
             $confirmedAttendees = $this->confirmedAttendeesFor($meeting);
 
             $minutes = $gemini->summarize((string) $meeting->transcript, $meeting->title, $committeeMembers, $confirmedAttendees);
+            $agendaItems = $this->extractAgendaItemsBestEffort($gemini, (string) $meeting->transcript, $meeting->title, $meeting);
 
             $meeting->update([
                 'minutes' => $minutes,
                 'minutes_ms' => $this->translateBestEffort($gemini, $minutes, $meeting),
+                'agenda_items' => $agendaItems,
+                'agenda_items_ms' => $agendaItems ? $this->translateAgendaItemsBestEffort($gemini, $agendaItems, $meeting) : null,
                 'status' => MeetingStatus::Ready,
             ]);
 
@@ -107,6 +110,33 @@ class GenerateMeetingMinutesJob implements ShouldQueue
             return $gemini->translate($minutes, 'Malay (Bahasa Malaysia)');
         } catch (Throwable $e) {
             Log::warning('Failed to translate meeting minutes to Malay: '.$e->getMessage(), ['meeting_id' => $meeting->id]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Structured agenda data feeds the official print template only — like
+     * the Malay translation, it's a nice-to-have alongside the primary
+     * minutes, not a requirement.
+     */
+    private function extractAgendaItemsBestEffort(GeminiSummaryService $gemini, string $transcript, string $title, Meeting $meeting): ?array
+    {
+        try {
+            return $gemini->extractAgendaItems($transcript, $title);
+        } catch (Throwable $e) {
+            Log::warning('Failed to extract structured agenda items: '.$e->getMessage(), ['meeting_id' => $meeting->id]);
+
+            return null;
+        }
+    }
+
+    private function translateAgendaItemsBestEffort(GeminiSummaryService $gemini, array $agendaItems, Meeting $meeting): ?array
+    {
+        try {
+            return $gemini->translateAgendaItems($agendaItems, 'Malay (Bahasa Malaysia)');
+        } catch (Throwable $e) {
+            Log::warning('Failed to translate structured agenda items: '.$e->getMessage(), ['meeting_id' => $meeting->id]);
 
             return null;
         }
