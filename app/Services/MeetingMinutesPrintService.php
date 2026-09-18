@@ -40,8 +40,12 @@ class MeetingMinutesPrintService
             'attendees' => $confirmedAttendees ?? ($agendaData['attendees'] ?? []),
             'attendeesConfirmed' => $confirmedAttendees !== null,
             'agendaItems' => $agendaData['agenda_items'] ?? [],
-            'preparedBy' => $this->resolvePerson($meeting->creator?->name, $meeting->organization_id),
-            'confirmedBy' => $this->resolveSecretary($meeting->organization_id),
+            'preparedBy' => $meeting->prepared_by_name
+                ? ['name' => $meeting->prepared_by_name, 'position' => $meeting->prepared_by_position]
+                : $this->resolvePerson($meeting->creator?->name, $meeting->organization_id),
+            'confirmedBy' => $meeting->confirmed_by_name
+                ? ['name' => $meeting->confirmed_by_name, 'position' => $meeting->confirmed_by_position]
+                : $this->resolveSecretary($meeting->organization_id),
             'schedule' => $this->schedule($meeting, $language),
         ];
     }

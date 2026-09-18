@@ -98,6 +98,11 @@
                             </button>
                         </div>
                     @endif
+                    @can('update', $meeting)
+                        @unless ($editingMinutes)
+                            <button type="button" wire:click="startEditingMinutes" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
+                        @endunless
+                    @endcan
                     <x-dropdown align="right" width="w-56">
                         <x-slot name="trigger">
                             <button type="button" class="text-sm font-medium text-indigo-600 hover:text-indigo-700">{{ __('Download') }}</button>
@@ -109,7 +114,66 @@
                     </x-dropdown>
                 </div>
             </div>
-            <div class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $this->currentMinutes() }}</div>
+
+            @if ($editingMinutes)
+                <form wire:submit="saveMinutesEdits" class="mt-4 space-y-6">
+                    <div>
+                        <x-input-label for="edit_minutes_text" :value="__('Minutes text')" />
+                        <textarea wire:model="editMinutesText" id="edit_minutes_text" rows="10" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        <x-input-error :messages="$errors->get('editMinutesText')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <x-input-label :value="__('Agenda items (for the Official Template)')" />
+                            <x-secondary-button type="button" wire:click="addAgendaItem">{{ __('Add Item') }}</x-secondary-button>
+                        </div>
+
+                        <div class="mt-2 space-y-3">
+                            @forelse ($editAgendaItems as $index => $item)
+                                <div wire:key="agenda-item-{{ $index }}" class="rounded-lg border border-slate-200 p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="flex-1 space-y-2">
+                                            <x-text-input wire:model="editAgendaItems.{{ $index }}.topic" type="text" class="block w-full" placeholder="{{ __('Topic') }}" />
+                                            <textarea wire:model="editAgendaItems.{{ $index }}.subPoints" rows="3" class="block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="{{ __('Sub-points, one per line') }}"></textarea>
+                                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                <x-text-input wire:model="editAgendaItems.{{ $index }}.actionBy" type="text" class="block w-full" placeholder="{{ __('Responsible party') }}" />
+                                                <x-text-input wire:model="editAgendaItems.{{ $index }}.notes" type="text" class="block w-full" placeholder="{{ __('Notes (optional)') }}" />
+                                            </div>
+                                        </div>
+                                        <button type="button" wire:click="removeAgendaItem({{ $index }})" class="shrink-0 text-sm font-medium text-red-600 hover:text-red-700">{{ __('Remove') }}</button>
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="text-sm text-slate-500">{{ __('No agenda items yet — click "Add Item" to add one.') }}</p>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <div>
+                        <x-input-label :value="__('Signature blocks (Official Template)')" />
+                        <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="space-y-2">
+                                <p class="text-xs font-medium text-slate-500">{{ __('Prepared by') }}</p>
+                                <x-text-input wire:model="editPreparedByName" type="text" class="block w-full" placeholder="{{ __('Name') }}" />
+                                <x-text-input wire:model="editPreparedByPosition" type="text" class="block w-full" placeholder="{{ __('Position') }}" />
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-xs font-medium text-slate-500">{{ __('Confirmed by') }}</p>
+                                <x-text-input wire:model="editConfirmedByName" type="text" class="block w-full" placeholder="{{ __('Name') }}" />
+                                <x-text-input wire:model="editConfirmedByPosition" type="text" class="block w-full" placeholder="{{ __('Position') }}" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <x-secondary-button type="button" wire:click="cancelEditingMinutes">{{ __('Cancel') }}</x-secondary-button>
+                        <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
+                    </div>
+                </form>
+            @else
+                <div class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $this->currentMinutes() }}</div>
+            @endif
         </div>
     @endif
 

@@ -140,4 +140,23 @@ class MeetingMinutesPrintTest extends TestCase
         $response->assertSee('Muhammad Adam');
         $response->assertSee('Setiausaha');
     }
+
+    public function test_manual_signoff_overrides_take_priority_over_the_computed_defaults(): void
+    {
+        $organization = Organization::factory()->create();
+        CommitteeMember::factory()->for($organization)->create(['name' => 'Muhammad Adam', 'position' => 'Setiausaha']);
+        $meeting = Meeting::factory()->for($organization)->create([
+            'prepared_by_name' => 'Manually Set Preparer',
+            'prepared_by_position' => 'Custom Role',
+            'confirmed_by_name' => 'Manually Set Confirmer',
+            'confirmed_by_position' => 'Custom Confirming Role',
+        ]);
+
+        $response = $this->actingAs($this->admin($organization))->get(route('meetings.print', $meeting));
+
+        $response->assertOk();
+        $response->assertSee('Manually Set Preparer');
+        $response->assertSee('Manually Set Confirmer');
+        $response->assertDontSee('Muhammad Adam');
+    }
 }
