@@ -9,6 +9,7 @@ use App\Enums\OfficeSpaceStatus;
 use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
 use App\Models\Event;
+use App\Models\Holiday;
 use App\Models\OfficeSpace;
 use App\Services\BookingService;
 use App\Services\EventCalendarSyncService;
@@ -346,6 +347,13 @@ class Calendar extends Component
                 ->get(), $gridStart, $gridEnd);
         }
 
+        $holidays = Holiday::query()
+            ->where('date', '>=', $gridStart)
+            ->where('date', '<=', $gridEnd)
+            ->orderBy('date')
+            ->get()
+            ->groupBy(fn (Holiday $holiday) => $holiday->date->format('Y-m-d'));
+
         $days = [];
         $cursor = $gridStart;
 
@@ -359,6 +367,7 @@ class Calendar extends Component
             'monthStart' => $monthStart,
             'bookingsByDay' => $bookings,
             'eventsByDay' => $events,
+            'holidaysByDay' => $holidays,
             'viewingBooking' => $this->viewBookingId ? Booking::with(['user', 'space'])->find($this->viewBookingId) : null,
             'viewingEvent' => $this->viewEventId ? Event::with('registrationForm')->find($this->viewEventId) : null,
             'spaces' => $spaces,

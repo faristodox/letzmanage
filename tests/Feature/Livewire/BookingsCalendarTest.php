@@ -11,6 +11,7 @@ use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\Event;
 use App\Models\EventForm;
+use App\Models\Holiday;
 use App\Models\OfficeSpace;
 use App\Models\User;
 use App\Services\SystemSettingService;
@@ -497,5 +498,34 @@ class BookingsCalendarTest extends TestCase
         // Each day cell renders the title twice (visible text + tooltip
         // attribute), so 3 spanned days => 6 occurrences.
         $this->assertSame(6, substr_count($html, $event->title));
+    }
+
+    public function test_holidays_within_the_visible_month_are_shown(): void
+    {
+        $branch = Branch::factory()->create();
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        $staff = User::factory()->create(['branch_id' => $branch->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+        Holiday::create([
+            'date' => $monthStart->copy()->addDays(4)->format('Y-m-d'),
+            'title' => 'Hari Raya Puasa',
+            'description' => 'Public holiday',
+        ]);
+
+        // Outside the visible grid entirely — must not leak in.
+        Holiday::create([
+            'date' => $monthStart->copy()->addYears(2)->format('Y-m-d'),
+            'title' => 'Some Far Future Holiday',
+            'description' => 'Public holiday',
+        ]);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->assertSee('Hari Raya Puasa')
+            ->assertDontSee('Some Far Future Holiday');
     }
 }

@@ -57,16 +57,23 @@
                     $isPast = $day->endOfDay()->isPast();
                     $dayBookings = $bookingsByDay->get($key, collect());
                     $dayEvents = $eventsByDay->get($key, collect());
+                    $dayHolidays = $holidaysByDay->get($key, collect());
                 @endphp
                 <div class="min-h-[100px] border-b border-r border-slate-100 p-2 {{ $isCurrentMonth ? 'bg-white' : 'bg-slate-50' }}">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium {{ $isCurrentMonth ? 'text-slate-700' : 'text-slate-400' }}">{{ $day->format('j') }}</span>
+                        <span class="text-xs font-medium {{ $dayHolidays->isNotEmpty() ? 'text-red-600' : ($isCurrentMonth ? 'text-slate-700' : 'text-slate-400') }}">{{ $day->format('j') }}</span>
                         @if ($isCurrentMonth && ! $isPast && ($spaces->isNotEmpty() || $canViewEvents))
                             <button wire:click="openCreate('{{ $key }}')" class="text-xs font-semibold text-indigo-500 hover:text-indigo-700" title="{{ __('New booking or event') }}">+</button>
                         @endif
                     </div>
 
                     <div class="mt-1 space-y-1">
+                        @foreach ($dayHolidays as $holiday)
+                            <div class="truncate rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700" title="{{ $holiday->title }}">
+                                {{ $holiday->title }}
+                            </div>
+                        @endforeach
+
                         @foreach ($dayBookings as $booking)
                             <div wire:click="viewBooking({{ $booking->id }})"
                                  class="cursor-pointer truncate rounded px-1.5 py-0.5 text-[11px] hover:ring-1 hover:ring-inset {{ $booking->status->value === 'approved' ? 'bg-emerald-50 text-emerald-700 hover:ring-emerald-600/30' : 'bg-amber-50 text-amber-700 hover:ring-amber-600/30' }}"
@@ -88,12 +95,13 @@
         </div>
     </div>
 
-    <div class="mt-4 flex gap-4 text-xs text-slate-500">
+    <div class="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-emerald-50 ring-1 ring-inset ring-emerald-600/20"></span> {{ __('Approved Booking') }}</span>
         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-amber-50 ring-1 ring-inset ring-amber-600/20"></span> {{ __('Pending Booking') }}</span>
         @if ($canViewEvents)
             <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-violet-50 ring-1 ring-inset ring-violet-600/20"></span> {{ __('Event') }}</span>
         @endif
+        <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-red-50 ring-1 ring-inset ring-red-600/20"></span> {{ __('Public Holiday') }}</span>
     </div>
 
     <!-- Create Booking / Event Modal -->

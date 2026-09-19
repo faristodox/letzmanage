@@ -19,20 +19,28 @@ class GoogleServiceAccountAuthService
 {
     private const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-    private const SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
+    /**
+     * Covers GCP infrastructure services (Speech-to-Text, Cloud Storage).
+     * Workspace-style APIs (Calendar, Drive, Sheets) need their own specific
+     * scope instead — confirmed against the real API: cloud-platform alone
+     * gets a 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT from the Calendar API.
+     */
+    private const DEFAULT_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
 
-    private const CACHE_KEY = 'google-speech-access-token';
+    private const CACHE_KEY_PREFIX = 'google-service-account-access-token-';
 
-    public function getAccessToken(): string
+    public function getAccessToken(string $scope = self::DEFAULT_SCOPE): string
     {
-        return Cache::get(self::CACHE_KEY) ?? $this->mintAccessToken();
+        $cacheKey = self::CACHE_KEY_PREFIX.md5($scope);
+
+        return Cache::get($cacheKey) ?? $this->mintAccessToken($scope, $cacheKey);
     }
 
-    private function mintAccessToken(): string
+    private function mintAccessToken(string $scope, string $cacheKey): string
     {
         $credentials = $this->readCredentials();
 
-        $jwt = $this->buildSignedJwt($credentials['client_email'], $credentials['private_key']);
+        $jwt = $this->buildSignedJwt($credentials['client_email'], $credentials['private_key'], $scope);
 
         $result = Http::asForm()->timeout(15)->post(self::TOKEN_URL, [
             'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
@@ -47,7 +55,7 @@ class GoogleServiceAccountAuthService
         $expiresIn = $result->json('expires_in');
 
         // 60s safety margin so a token never expires mid-request.
-        Cache::put(self::CACHE_KEY, $accessToken, max(1, $expiresIn - 60));
+        Cache::put($cacheKey, $accessToken, max(1, $expiresIn - 60));
 
         return $accessToken;
     }
@@ -72,7 +80,7 @@ class GoogleServiceAccountAuthService
         return $credentials;
     }
 
-    private function buildSignedJwt(string $clientEmail, string $privateKey): string
+    private function buildSignedJwt(string $clientEmail, string $privateKey, string $scope): string
     {
         $now = time();
 
@@ -80,7 +88,7 @@ class GoogleServiceAccountAuthService
 
         $claims = $this->base64UrlEncode(json_encode([
             'iss' => $clientEmail,
-            'scope' => self::SCOPE,
+            'scope' => $scope,
             'aud' => self::TOKEN_URL,
             'iat' => $now,
             'exp' => $now + 3600,

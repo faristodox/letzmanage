@@ -4,7 +4,6 @@ namespace Tests\Feature\Services;
 
 use App\Exceptions\MeetingNotConfiguredException;
 use App\Services\GoogleServiceAccountAuthService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -124,5 +123,32 @@ class GoogleServiceAccountAuthServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
 
         app(GoogleServiceAccountAuthService::class)->getAccessToken();
+    }
+
+    public function test_a_non_default_scope_is_embedded_in_the_signed_jwt_and_cached_separately(): void
+    {
+        $this->writeFakeCredentials();
+
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::sequence()
+                ->push(['access_token' => 'calendar-scoped-token', 'expires_in' => 3600])
+                ->push(['access_token' => 'default-scope-token', 'expires_in' => 3600]),
+        ]);
+
+        $service = app(GoogleServiceAccountAuthService::class);
+        $token = $service->getAccessToken('https://www.googleapis.com/auth/calendar.readonly');
+
+        $this->assertSame('calendar-scoped-token', $token);
+        Http::assertSent(function ($request) {
+            [, $claimsSegment] = explode('.', $request['assertion']);
+            $claims = json_decode(base64_decode(strtr($claimsSegment, '-_', '+/')), true);
+
+            return $claims['scope'] === 'https://www.googleapis.com/auth/calendar.readonly';
+        });
+
+        // A different scope must not reuse the default scope's cached token.
+        $defaultToken = $service->getAccessToken();
+        $this->assertNotSame($token, $defaultToken);
+        Http::assertSentCount(2);
     }
 }
