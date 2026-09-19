@@ -2,20 +2,13 @@
 
 namespace App\Services;
 
-use App\Exceptions\MeetingNotConfiguredException;
-use Illuminate\Support\Facades\Http;
-use RuntimeException;
-
 /**
  * Summarizes a meeting transcript into a structured Minutes of Meeting via
- * the Gemini API. Plain HTTP, no SDK — matching this app's other Google
- * service clients. Uses its own API key (config('services.gemini.*')), not
- * the service-account credentials GoogleServiceAccountAuthService issues —
- * Gemini's Developer API authenticates via a simple key, no JWT exchange.
+ * the Gemini API, through the shared GeminiClient.
  */
 class GeminiSummaryService
 {
-    private const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/';
+    public function __construct(private GeminiClient $client) {}
 
     /**
      * @param  array<int, array{name: string, position: string}>  $committeeMembers  The
@@ -76,32 +69,7 @@ class GeminiSummaryService
 
     private function generate(string $prompt): string
     {
-        $apiKey = config('services.gemini.api_key');
-
-        if (! $apiKey) {
-            throw new MeetingNotConfiguredException('Meeting transcription is not set up yet — the Gemini API key is missing on the server.');
-        }
-
-        $model = config('services.gemini.model');
-
-        $result = Http::timeout(60)
-            ->post(self::BASE_URL."models/{$model}:generateContent?key={$apiKey}", [
-                'contents' => [
-                    ['parts' => [['text' => $prompt]]],
-                ],
-            ]);
-
-        if ($result->failed()) {
-            throw new RuntimeException('Gemini request failed: '.$result->body());
-        }
-
-        $text = $result->json('candidates.0.content.parts.0.text');
-
-        if (! $text) {
-            throw new RuntimeException('Gemini returned no usable content: '.$result->body());
-        }
-
-        return $text;
+        return $this->client->generateContent([['text' => $prompt]]);
     }
 
     private function buildSummaryPrompt(string $transcript, string $meetingTitle, array $committeeMembers = [], array $confirmedAttendees = []): string
@@ -197,19 +165,8 @@ class GeminiSummaryService
         PROMPT;
     }
 
-    /**
-     * Gemini is asked for strict JSON but sometimes wraps it in ```json
-     * fences despite the instruction not to — strip those before decoding.
-     */
     private function parseJson(string $text): array
     {
-        $cleaned = trim(preg_replace('/^```(?:json)?|```$/m', '', trim($text)));
-        $decoded = json_decode($cleaned, true);
-
-        if (! is_array($decoded)) {
-            throw new RuntimeException('Gemini returned invalid JSON: '.$text);
-        }
-
-        return $decoded;
+        return $this->client->parseJson($text);
     }
 }
