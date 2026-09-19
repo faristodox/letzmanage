@@ -14,7 +14,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                {{ __('New Meeting') }}
+                {{ __('New AI MoM') }}
             </x-primary-button>
         @endcan
     </div>
@@ -81,7 +81,7 @@
 
             <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-lg">
                 <div class="p-6 sm:p-8">
-                    <h2 class="text-lg font-semibold text-slate-900">{{ __('New Meeting') }}</h2>
+                    <h2 class="text-lg font-semibold text-slate-900">{{ __('New AI MoM') }}</h2>
 
                     <div class="mt-4">
                         <x-input-label for="meeting_title" :value="__('Title')" />

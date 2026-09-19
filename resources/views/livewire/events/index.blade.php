@@ -71,7 +71,7 @@
                                 @endcan
                             @endif
                             @can('viewAny', App\Models\Meeting::class)
-                                <a href="{{ route('meetings.index', ['event' => $event->id]) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('Meetings') }}</a>
+                                <a href="{{ route('meetings.index', ['event' => $event->id]) }}" wire:navigate class="text-indigo-600 hover:text-indigo-700">{{ __('AI MoM') }}</a>
                             @endcan
                             @can('delete', $event)
                                 <button wire:click="confirmDelete({{ $event->id }})" class="text-red-600 hover:text-red-700">{{ __('Delete') }}</button>
