@@ -6,6 +6,8 @@ use App\Enums\RoleName;
 use App\Enums\UserStatus;
 use App\Livewire\Users\Index;
 use App\Models\Branch;
+use App\Models\CommitteeMember;
+use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,6 +72,119 @@ class UsersIndexTest extends TestCase
             ->test(Index::class)
             ->call('confirmDelete', $admin->id)
             ->assertForbidden();
+    }
+
+    public function test_creating_a_committee_member_without_linking_auto_creates_a_roster_entry(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $wanita = Portfolio::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('name', 'Siti Aminah')
+            ->set('email', 'siti@example.com')
+            ->set('password', 'password123')
+            ->set('role', RoleName::CommitteeMember->value)
+            ->set('portfolio_id', $wanita->id)
+            ->set('committeePosition', 'Setiausaha')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $user = User::where('email', 'siti@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertTrue($user->hasRole(RoleName::CommitteeMember->value));
+        $this->assertSame($wanita->id, $user->portfolio_id);
+
+        $committeeMember = CommitteeMember::where('user_id', $user->id)->first();
+        $this->assertNotNull($committeeMember);
+        $this->assertSame('Siti Aminah', $committeeMember->name);
+        $this->assertSame('Setiausaha', $committeeMember->position);
+        $this->assertSame($wanita->id, $committeeMember->portfolio_id);
+    }
+
+    public function test_creating_a_committee_member_can_link_to_an_existing_roster_entry_instead_of_duplicating(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $wanita = Portfolio::factory()->create();
+        $existing = CommitteeMember::factory()->create([
+            'portfolio_id' => $wanita->id,
+            'name' => 'Siti Aminah',
+            'position' => 'Setiausaha',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('name', 'Siti Aminah')
+            ->set('email', 'siti@example.com')
+            ->set('password', 'password123')
+            ->set('role', RoleName::CommitteeMember->value)
+            ->set('portfolio_id', $wanita->id)
+            ->set('linkCommitteeMemberId', $existing->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $user = User::where('email', 'siti@example.com')->first();
+        $this->assertSame(1, CommitteeMember::where('portfolio_id', $wanita->id)->count(), 'Linking to an existing entry must not create a duplicate.');
+        $this->assertSame($user->id, $existing->fresh()->user_id);
+    }
+
+    public function test_switching_a_committee_members_role_away_unlinks_their_roster_entry_and_clears_their_portfolio(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $wanita = Portfolio::factory()->create();
+        $committeeMemberUser = User::factory()->create(['portfolio_id' => $wanita->id]);
+        $committeeMemberUser->assignRole(RoleName::CommitteeMember->value);
+        $roster = CommitteeMember::factory()->create(['portfolio_id' => $wanita->id, 'user_id' => $committeeMemberUser->id]);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('edit', $committeeMemberUser->id)
+            ->set('role', RoleName::Staff->value)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertNull($committeeMemberUser->fresh()->portfolio_id);
+        $this->assertNull($roster->fresh()->user_id, 'The roster entry itself should stay, just unlinked from the account.');
+    }
+
+    public function test_committee_member_role_requires_a_portfolio(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('create')
+            ->set('name', 'Siti Aminah')
+            ->set('email', 'siti@example.com')
+            ->set('password', 'password123')
+            ->set('role', RoleName::CommitteeMember->value)
+            ->call('save')
+            ->assertHasErrors(['portfolio_id']);
+    }
+
+    public function test_the_full_users_page_renders_with_the_portfolio_column_and_form_fields(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        $wanita = Portfolio::factory()->create();
+        $committeeMemberUser = User::factory()->create(['portfolio_id' => $wanita->id]);
+        $committeeMemberUser->assignRole(RoleName::CommitteeMember->value);
+
+        $this->actingAs($admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('Portfolio')
+            ->assertSee($wanita->name);
     }
 
     public function test_manager_cannot_access_users_component(): void

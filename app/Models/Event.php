@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-#[Fillable(['organization_id', 'type', 'title', 'slug', 'description', 'banner_path', 'status', 'created_by', 'start_date', 'start_time', 'end_date', 'end_time', 'location', 'google_event_id', 'checkin_enabled', 'checkin_token', 'allow_new_registration'])]
+#[Fillable(['organization_id', 'portfolio_id', 'type', 'title', 'slug', 'description', 'banner_path', 'status', 'created_by', 'start_date', 'start_time', 'end_date', 'end_time', 'location', 'google_event_id', 'checkin_enabled', 'checkin_token', 'allow_new_registration'])]
 class Event extends Model implements GoogleCalendarSyncable
 {
     use BelongsToOrganization, HasFactory;
@@ -82,6 +82,11 @@ class Event extends Model implements GoogleCalendarSyncable
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function portfolio(): BelongsTo
+    {
+        return $this->belongsTo(Portfolio::class);
     }
 
     public function totalIncome(): float

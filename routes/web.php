@@ -173,6 +173,7 @@ Route::get('profile/google-calendar/callback', [GoogleCalendarConnectionControll
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('branches', 'branches.index')->name('branches.index');
+    Route::view('portfolios', 'portfolios.index')->name('portfolios.index');
     Route::view('office-spaces', 'office-spaces.index')->name('office-spaces.index');
     Route::view('users', 'users.index')->name('users.index');
     Route::view('settings', 'settings.index')->name('settings.index');

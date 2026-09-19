@@ -8,6 +8,7 @@ use App\Livewire\CommitteeMembers\Index;
 use App\Models\CommitteeMember;
 use App\Models\Event;
 use App\Models\Organization;
+use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,6 +62,46 @@ class CommitteeMembersIndexTest extends TestCase
             'name' => 'Ahmad Zaki',
             'position' => 'President',
         ]);
+    }
+
+    public function test_admin_can_add_a_committee_member_to_a_portfolio(): void
+    {
+        $organization = Organization::factory()->create();
+        $wanita = Portfolio::factory()->for($organization)->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Index::class)
+            ->call('create')
+            ->set('name', 'Ahmad Zaki')
+            ->set('position', 'President')
+            ->set('portfolio_id', $wanita->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('committee_members', [
+            'organization_id' => $organization->id,
+            'name' => 'Ahmad Zaki',
+            'portfolio_id' => $wanita->id,
+        ]);
+    }
+
+    public function test_the_full_committee_members_page_renders_with_the_portfolio_and_linked_account_columns(): void
+    {
+        $organization = Organization::factory()->create();
+        $wanita = Portfolio::factory()->for($organization)->create();
+        $linkedUser = User::factory()->create(['organization_id' => $organization->id, 'portfolio_id' => $wanita->id]);
+        CommitteeMember::factory()->create([
+            'organization_id' => $organization->id,
+            'portfolio_id' => $wanita->id,
+            'user_id' => $linkedUser->id,
+        ]);
+
+        $this->actingAs($this->admin($organization))
+            ->get(route('committee-members.index'))
+            ->assertOk()
+            ->assertSee('Portfolio')
+            ->assertSee('Linked Account')
+            ->assertSee($linkedUser->email);
     }
 
     public function test_validation_requires_name_and_position(): void

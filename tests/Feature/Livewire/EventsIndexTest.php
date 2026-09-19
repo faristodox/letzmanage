@@ -12,6 +12,7 @@ use App\Models\EventForm;
 use App\Models\EventFormResponse;
 use App\Models\Organization;
 use App\Models\OrganizationCalendarSetting;
+use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -123,6 +124,61 @@ class EventsIndexTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertNotNull(Event::where('title', 'Annual Dinner 2026')->first());
+    }
+
+    public function test_committee_member_only_sees_their_own_portfolios_events_in_the_list(): void
+    {
+        $wanita = Portfolio::factory()->create();
+        $belia = Portfolio::factory()->create();
+
+        $wanitaMember = User::factory()->create(['portfolio_id' => $wanita->id]);
+        $wanitaMember->assignRole(RoleName::CommitteeMember->value);
+
+        Event::factory()->create(['portfolio_id' => $wanita->id, 'title' => 'WANITA Event']);
+        Event::factory()->create(['portfolio_id' => $belia->id, 'title' => 'Belia Event']);
+        Event::factory()->create(['portfolio_id' => null, 'title' => 'General Event']);
+
+        Livewire::actingAs($wanitaMember)
+            ->test(Index::class)
+            ->assertSee('WANITA Event')
+            ->assertDontSee('Belia Event')
+            ->assertDontSee('General Event');
+    }
+
+    public function test_admin_sees_events_from_every_portfolio(): void
+    {
+        $wanita = Portfolio::factory()->create();
+        $belia = Portfolio::factory()->create();
+
+        $admin = User::factory()->create(['portfolio_id' => null]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        Event::factory()->create(['portfolio_id' => $wanita->id, 'title' => 'WANITA Event']);
+        Event::factory()->create(['portfolio_id' => $belia->id, 'title' => 'Belia Event']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->assertSee('WANITA Event')
+            ->assertSee('Belia Event');
+    }
+
+    public function test_a_committee_members_new_event_is_auto_tagged_to_their_own_portfolio(): void
+    {
+        $wanita = Portfolio::factory()->create();
+
+        $wanitaMember = User::factory()->create(['portfolio_id' => $wanita->id]);
+        $wanitaMember->assignRole(RoleName::CommitteeMember->value);
+
+        Livewire::actingAs($wanitaMember)
+            ->test(Index::class)
+            ->call('create')
+            ->set('title', 'WANITA Retreat')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $event = Event::where('title', 'WANITA Retreat')->first();
+        $this->assertNotNull($event);
+        $this->assertSame($wanita->id, $event->portfolio_id);
     }
 
     public function test_staff_cannot_create_an_event(): void

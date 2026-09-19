@@ -8,6 +8,7 @@ use App\Livewire\Meetings\Index;
 use App\Models\Event;
 use App\Models\Meeting;
 use App\Models\Organization;
+use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -83,6 +84,47 @@ class MeetingsIndexTest extends TestCase
             ->assertDontSee('Standalone Meeting')
             ->call('clearEventFilter')
             ->assertSee('Standalone Meeting');
+    }
+
+    public function test_committee_member_only_sees_meetings_linked_to_their_own_portfolios_events(): void
+    {
+        $organization = Organization::factory()->create();
+        $wanita = Portfolio::factory()->create(['organization_id' => $organization->id]);
+        $belia = Portfolio::factory()->create(['organization_id' => $organization->id]);
+
+        $wanitaMember = User::factory()->create(['organization_id' => $organization->id, 'portfolio_id' => $wanita->id]);
+        $wanitaMember->assignRole(RoleName::CommitteeMember->value);
+
+        $wanitaEvent = Event::factory()->for($organization)->create(['portfolio_id' => $wanita->id]);
+        $beliaEvent = Event::factory()->for($organization)->create(['portfolio_id' => $belia->id]);
+
+        Meeting::factory()->for($organization)->create(['event_id' => $wanitaEvent->id, 'title' => 'WANITA Meeting']);
+        Meeting::factory()->for($organization)->create(['event_id' => $beliaEvent->id, 'title' => 'Belia Meeting']);
+        Meeting::factory()->for($organization)->create(['event_id' => null, 'title' => 'Standalone Meeting']);
+
+        Livewire::actingAs($wanitaMember)
+            ->test(Index::class)
+            ->assertSee('WANITA Meeting')
+            ->assertDontSee('Belia Meeting')
+            ->assertDontSee('Standalone Meeting');
+    }
+
+    public function test_admin_sees_meetings_from_every_portfolio(): void
+    {
+        $organization = Organization::factory()->create();
+        $wanita = Portfolio::factory()->create(['organization_id' => $organization->id]);
+        $belia = Portfolio::factory()->create(['organization_id' => $organization->id]);
+
+        $wanitaEvent = Event::factory()->for($organization)->create(['portfolio_id' => $wanita->id]);
+        $beliaEvent = Event::factory()->for($organization)->create(['portfolio_id' => $belia->id]);
+
+        Meeting::factory()->for($organization)->create(['event_id' => $wanitaEvent->id, 'title' => 'WANITA Meeting']);
+        Meeting::factory()->for($organization)->create(['event_id' => $beliaEvent->id, 'title' => 'Belia Meeting']);
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Index::class)
+            ->assertSee('WANITA Meeting')
+            ->assertSee('Belia Meeting');
     }
 
     public function test_validation_rejects_a_file_with_an_unsupported_extension(): void

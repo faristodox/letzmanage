@@ -133,6 +133,7 @@ class Index extends Component
                 'registrationForm' => fn ($query) => $query->withCount('responses'),
                 'feedbackForm',
             ])
+            ->when(auth()->user()->portfolio_id, fn ($query) => $query->where('portfolio_id', auth()->user()->portfolio_id))
             ->orderByDesc('created_at')
             ->paginate(10);
 

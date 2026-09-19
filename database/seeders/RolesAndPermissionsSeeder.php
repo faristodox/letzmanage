@@ -45,5 +45,14 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::CreateBookings,
             PermissionName::ViewOwnBookings,
         ]);
+
+        // Scoped to their own portfolio at the query level (see
+        // Events\Index / Meetings\Index) — the permissions themselves are
+        // the same ones Manager already has for these two features.
+        $committeeMember = Role::findOrCreate(RoleName::CommitteeMember->value);
+        $committeeMember->syncPermissions([
+            PermissionName::ManageEventForms,
+            PermissionName::ManageMeetings,
+        ]);
     }
 }

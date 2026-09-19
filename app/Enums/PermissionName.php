@@ -5,6 +5,7 @@ namespace App\Enums;
 enum PermissionName: string
 {
     case ManageBranches = 'manage branches';
+    case ManagePortfolios = 'manage portfolios';
     case ManageUsers = 'manage users';
     case ManageOfficeSpaces = 'manage office spaces';
     case ManageSettings = 'manage settings';
@@ -27,6 +28,7 @@ enum PermissionName: string
     {
         return match ($this) {
             self::ManageBranches => 'Manage Branches',
+            self::ManagePortfolios => 'Manage Portfolios',
             self::ManageUsers => 'Manage Users',
             self::ManageOfficeSpaces => 'Manage Office Spaces',
             self::ManageSettings => 'Manage Settings',
@@ -50,7 +52,7 @@ enum PermissionName: string
     public function group(): string
     {
         return match ($this) {
-            self::ManageBranches, self::ManageUsers, self::ManageOfficeSpaces,
+            self::ManageBranches, self::ManagePortfolios, self::ManageUsers, self::ManageOfficeSpaces,
             self::ManageSettings, self::ManageRoles => 'Administration',
             self::CreateBookings, self::ViewOwnBookings, self::ViewAllBookings,
             self::ApproveBookings, self::CancelAnyBooking => 'Bookings',

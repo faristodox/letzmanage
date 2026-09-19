@@ -93,15 +93,22 @@ class Index extends Component
 
     public function render()
     {
+        $portfolioId = auth()->user()->portfolio_id;
+
         $meetings = Meeting::query()
             ->with(['event', 'creator'])
             ->when($this->eventId, fn ($query) => $query->where('event_id', $this->eventId))
+            ->when($portfolioId, fn ($query) => $query->whereHas('event', fn ($query) => $query->where('portfolio_id', $portfolioId)))
             ->orderByDesc('created_at')
             ->paginate(15);
 
         return view('livewire.meetings.index', [
             'meetings' => $meetings,
-            'events' => Event::query()->orderByDesc('created_at')->limit(50)->get(['id', 'title']),
+            'events' => Event::query()
+                ->when($portfolioId, fn ($query) => $query->where('portfolio_id', $portfolioId))
+                ->orderByDesc('created_at')
+                ->limit(50)
+                ->get(['id', 'title']),
             'filteredEvent' => $this->eventId ? Event::find($this->eventId) : null,
         ]);
     }

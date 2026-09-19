@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * of whatever a possibly-garbled ASR transcript produced. See
  * GeminiSummaryService::summarize().
  */
-#[Fillable(['organization_id', 'name', 'position', 'ic_number'])]
+#[Fillable(['organization_id', 'portfolio_id', 'user_id', 'name', 'position', 'ic_number'])]
 class CommitteeMember extends Model
 {
     use BelongsToOrganization, HasFactory;
@@ -27,6 +28,20 @@ class CommitteeMember extends Model
     public function attendedEvents(): BelongsToMany
     {
         return $this->belongsToMany(Event::class, 'event_attendances')->withPivot('checked_in_at');
+    }
+
+    public function portfolio(): BelongsTo
+    {
+        return $this->belongsTo(Portfolio::class);
+    }
+
+    /**
+     * Set only for the subset of roster entries who also have a Letz Manage
+     * login — most committee members are attendees only and leave this null.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

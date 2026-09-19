@@ -3,6 +3,7 @@
 namespace App\Livewire\CommitteeMembers;
 
 use App\Models\CommitteeMember;
+use App\Models\Portfolio;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,6 +21,8 @@ class Index extends Component
 
     public string $icNumber = '';
 
+    public ?int $portfolio_id = null;
+
     public ?int $viewingAttendanceForId = null;
 
     public function mount(): void
@@ -31,7 +34,7 @@ class Index extends Component
     {
         $this->authorize('create', CommitteeMember::class);
 
-        $this->reset(['editingId', 'name', 'position', 'icNumber']);
+        $this->reset(['editingId', 'name', 'position', 'icNumber', 'portfolio_id']);
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -44,6 +47,7 @@ class Index extends Component
         $this->name = $committeeMember->name;
         $this->position = $committeeMember->position;
         $this->icNumber = (string) $committeeMember->ic_number;
+        $this->portfolio_id = $committeeMember->portfolio_id;
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -51,7 +55,7 @@ class Index extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['editingId', 'name', 'position', 'icNumber']);
+        $this->reset(['editingId', 'name', 'position', 'icNumber', 'portfolio_id']);
         $this->resetValidation();
     }
 
@@ -61,12 +65,14 @@ class Index extends Component
             'name' => ['required', 'string', 'max:255'],
             'position' => ['required', 'string', 'max:255'],
             'icNumber' => ['nullable', 'string', 'max:32'],
+            'portfolio_id' => ['nullable', 'integer', 'exists:portfolios,id'],
         ]);
 
         $data = [
             'name' => $data['name'],
             'position' => $data['position'],
             'ic_number' => $data['icNumber'] ?: null,
+            'portfolio_id' => $data['portfolio_id'],
         ];
 
         if ($this->editingId) {
@@ -103,6 +109,7 @@ class Index extends Component
     public function render()
     {
         $committeeMembers = CommitteeMember::query()
+            ->with(['portfolio', 'user'])
             ->orderBy('name')
             ->paginate(15);
 
@@ -114,6 +121,7 @@ class Index extends Component
         return view('livewire.committee-members.index', [
             'committeeMembers' => $committeeMembers,
             'viewingAttendance' => $viewingAttendance,
+            'portfolios' => Portfolio::orderBy('name')->get(),
         ]);
     }
 }

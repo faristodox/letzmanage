@@ -16,7 +16,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'organization_id', 'branch_id', 'status', 'is_super_admin'])]
+#[Fillable(['name', 'email', 'password', 'organization_id', 'branch_id', 'portfolio_id', 'status', 'is_super_admin'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -48,6 +48,11 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
+    public function portfolio(): BelongsTo
+    {
+        return $this->belongsTo(Portfolio::class);
+    }
+
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
@@ -56,5 +61,14 @@ class User extends Authenticatable
     public function googleAccount(): HasOne
     {
         return $this->hasOne(UserGoogleAccount::class);
+    }
+
+    /**
+     * The committee roster entry this account is linked to, if any — most
+     * users have none (they're not on the CommitteeMember roster at all).
+     */
+    public function committeeMember(): HasOne
+    {
+        return $this->hasOne(CommitteeMember::class);
     }
 }

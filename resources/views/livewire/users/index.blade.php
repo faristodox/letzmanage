@@ -23,6 +23,7 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Email') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Role') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Branch') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Portfolio') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Status') }}</th>
                     <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Actions') }}</th>
                 </tr>
@@ -32,8 +33,9 @@
                     <tr wire:key="user-{{ $user->id }}" class="hover:bg-slate-50">
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $user->name }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $user->email }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ ucfirst($user->getRoleNames()->first() ?? '—') }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ ($roleName = $user->getRoleNames()->first()) ? (App\Enums\RoleName::tryFrom($roleName)?->label() ?? ucfirst($roleName)) : '—' }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $user->branch?->name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $user->portfolio?->name ?? '—' }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm">
                             <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $user->status === App\Enums\UserStatus::Active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-slate-100 text-slate-600 ring-slate-500/10' }}">
                                 {{ ucfirst($user->status->value) }}
@@ -50,7 +52,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No users found.') }}</td>
+                        <td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No users found.') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -91,14 +93,49 @@
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
 
-                    <div class="mt-4">
+                    <div class="mt-4" x-data="{ role: @entangle('role') }">
                         <x-input-label for="role" :value="__('Role')" />
-                        <select wire:model="role" id="role" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model.live="role" x-model="role" id="role" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @foreach ($roles as $roleOption)
-                                <option value="{{ $roleOption->value }}">{{ ucfirst($roleOption->value) }}</option>
+                                <option value="{{ $roleOption->value }}">{{ $roleOption->label() }}</option>
                             @endforeach
                         </select>
                         <x-input-error :messages="$errors->get('role')" class="mt-2" />
+
+                        <div x-show="role === 'committee_member'" class="mt-4 space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div>
+                                <x-input-label for="portfolio_id" :value="__('Portfolio')" />
+                                <select wire:model.live="portfolio_id" id="portfolio_id" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">{{ __('Select a portfolio') }}</option>
+                                    @foreach ($portfolios as $portfolio)
+                                        <option value="{{ $portfolio->id }}">{{ $portfolio->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('portfolio_id')" class="mt-2" />
+                            </div>
+
+                            @if ($portfolio_id)
+                                <div>
+                                    <x-input-label for="linkCommitteeMemberId" :value="__('Link to existing committee member (optional)')" />
+                                    <select wire:model.live="linkCommitteeMemberId" id="linkCommitteeMemberId" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        <option value="">{{ __('— Create a new committee member entry —') }}</option>
+                                        @foreach ($availableCommitteeMembers as $committeeMember)
+                                            <option value="{{ $committeeMember->id }}">{{ $committeeMember->name }} ({{ $committeeMember->position }})</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('linkCommitteeMemberId')" class="mt-2" />
+                                </div>
+
+                                @unless ($linkCommitteeMemberId)
+                                    <div>
+                                        <x-input-label for="committeePosition" :value="__('Position')" />
+                                        <x-text-input wire:model="committeePosition" id="committeePosition" type="text" class="mt-1 block w-full" placeholder="{{ __('e.g. Setiausaha') }}" />
+                                        <x-input-error :messages="$errors->get('committeePosition')" class="mt-2" />
+                                        <p class="mt-1 text-xs text-slate-400">{{ __('A new committee member roster entry will be created and linked to this account.') }}</p>
+                                    </div>
+                                @endunless
+                            @endif
+                        </div>
                     </div>
 
                     <div class="mt-4">

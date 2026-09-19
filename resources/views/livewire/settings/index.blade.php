@@ -41,6 +41,20 @@
         </div>
     @endcan
 
+    @can('viewAny', App\Models\Portfolio::class)
+        <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">{{ __('Portfolios') }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">{{ __("Manage your organization's committees/wings, e.g. Jawatankuasa WANITA.") }}</p>
+                </div>
+                <a href="{{ route('portfolios.index') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                    {{ __('Open →') }}
+                </a>
+            </div>
+        </div>
+    @endcan
+
     @can('viewAny', App\Models\OfficeSpace::class)
         <div class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between gap-4">

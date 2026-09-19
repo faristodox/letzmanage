@@ -19,6 +19,8 @@
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Name') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Position') }}</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('IC Number') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Portfolio') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Linked Account') }}</th>
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -28,6 +30,16 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">{{ $committeeMember->name }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $committeeMember->position }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $committeeMember->maskedIcNumber() ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-500">{{ $committeeMember->portfolio?->name ?? '—' }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            @if ($committeeMember->user)
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                    {{ $committeeMember->user->email }}
+                                </span>
+                            @else
+                                <span class="text-slate-400">—</span>
+                            @endif
+                        </td>
                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
                             <button wire:click="viewAttendance({{ $committeeMember->id }})" class="font-medium text-indigo-600 hover:text-indigo-700">{{ __('Attendance') }}</button>
                             <button wire:click="edit({{ $committeeMember->id }})" class="ml-3 font-medium text-indigo-600 hover:text-indigo-700">{{ __('Edit') }}</button>
@@ -36,7 +48,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No committee members added yet.') }}</td>
+                        <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-500">{{ __('No committee members added yet.') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -72,6 +84,17 @@
                             <x-input-label for="committee_member_ic_number" :value="__('IC Number (MyKad)')" />
                             <x-text-input wire:model="icNumber" id="committee_member_ic_number" type="text" class="mt-1 block w-full" placeholder="{{ __('Optional — needed for meeting check-in') }}" />
                             <x-input-error :messages="$errors->get('icNumber')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="committee_member_portfolio_id" :value="__('Portfolio (optional)')" />
+                            <select wire:model="portfolio_id" id="committee_member_portfolio_id" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">{{ __('No portfolio') }}</option>
+                                @foreach ($portfolios as $portfolio)
+                                    <option value="{{ $portfolio->id }}">{{ $portfolio->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('portfolio_id')" class="mt-2" />
                         </div>
 
                         <div class="mt-6 flex justify-end gap-3">

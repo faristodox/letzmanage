@@ -3,7 +3,9 @@
 namespace Tests\Feature\Policies;
 
 use App\Enums\RoleName;
+use App\Models\Event;
 use App\Models\Meeting;
+use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -57,5 +59,51 @@ class MeetingPolicyTest extends TestCase
         $this->assertFalse($staff->can('create', Meeting::class));
         $this->assertFalse($staff->can('view', $meeting));
         $this->assertFalse($staff->can('delete', $meeting));
+    }
+
+    public function test_committee_member_can_only_manage_meetings_linked_to_their_own_portfolios_events(): void
+    {
+        $wanita = Portfolio::factory()->create();
+        $belia = Portfolio::factory()->create();
+
+        $wanitaMember = User::factory()->create(['portfolio_id' => $wanita->id]);
+        $wanitaMember->assignRole(RoleName::CommitteeMember->value);
+
+        $ownEvent = Event::factory()->create(['portfolio_id' => $wanita->id]);
+        $otherPortfolioEvent = Event::factory()->create(['portfolio_id' => $belia->id]);
+
+        $ownMeeting = Meeting::factory()->create(['event_id' => $ownEvent->id]);
+        $otherPortfolioMeeting = Meeting::factory()->create(['event_id' => $otherPortfolioEvent->id]);
+        $standaloneMeeting = Meeting::factory()->create(['event_id' => null]);
+
+        $this->assertTrue($wanitaMember->can('viewAny', Meeting::class));
+        $this->assertTrue($wanitaMember->can('create', Meeting::class));
+
+        $this->assertTrue($wanitaMember->can('view', $ownMeeting));
+        $this->assertTrue($wanitaMember->can('delete', $ownMeeting));
+
+        $this->assertFalse($wanitaMember->can('view', $otherPortfolioMeeting));
+        $this->assertFalse($wanitaMember->can('delete', $otherPortfolioMeeting));
+
+        $this->assertFalse($wanitaMember->can('view', $standaloneMeeting));
+        $this->assertFalse($wanitaMember->can('delete', $standaloneMeeting));
+    }
+
+    public function test_admin_and_manager_are_unrestricted_by_portfolio_for_meetings(): void
+    {
+        $wanita = Portfolio::factory()->create();
+        $event = Event::factory()->create(['portfolio_id' => $wanita->id]);
+        $meeting = Meeting::factory()->create(['event_id' => $event->id]);
+
+        $admin = User::factory()->create(['portfolio_id' => null]);
+        $admin->assignRole(RoleName::Admin->value);
+
+        $manager = User::factory()->create(['portfolio_id' => null]);
+        $manager->assignRole(RoleName::Manager->value);
+
+        foreach ([$admin, $manager] as $user) {
+            $this->assertTrue($user->can('view', $meeting));
+            $this->assertTrue($user->can('delete', $meeting));
+        }
     }
 }
