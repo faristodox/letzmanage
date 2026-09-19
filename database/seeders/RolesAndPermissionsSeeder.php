@@ -38,6 +38,7 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::ViewFormResponses,
             PermissionName::ManageArchive,
             PermissionName::ManageMeetings,
+            PermissionName::ManageCommitteeMembers,
         ]);
 
         $staff = Role::findOrCreate(RoleName::Staff->value);
@@ -53,6 +54,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $committeeMember->syncPermissions([
             PermissionName::ManageEventForms,
             PermissionName::ManageMeetings,
+            PermissionName::ManageCommitteeMembers,
         ]);
     }
 }
