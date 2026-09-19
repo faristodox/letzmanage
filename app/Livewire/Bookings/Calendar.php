@@ -5,6 +5,8 @@ namespace App\Livewire\Bookings;
 use App\Enums\BookingStatus;
 use App\Enums\CalendarFilterType;
 use App\Enums\EventStatus;
+use App\Enums\HolidaySource;
+use App\Enums\HolidayType;
 use App\Enums\OfficeSpaceStatus;
 use App\Exceptions\BookingConflictException;
 use App\Models\Booking;
@@ -347,12 +349,35 @@ class Calendar extends Component
                 ->get(), $gridStart, $gridEnd);
         }
 
-        $holidays = Holiday::query()
-            ->where('date', '>=', $gridStart)
+        $holidaySetting = auth()->user()->organization?->holidayCalendarSetting;
+        $holidaySource = $holidaySetting?->source ?? HolidaySource::Google;
+        $holidayState = $holidaySetting?->state;
+
+        $holidayRows = Holiday::query()
             ->where('date', '<=', $gridEnd)
+            ->where(function ($query) use ($gridStart) {
+                $query->where('end_date', '>=', $gridStart)
+                    ->orWhere(function ($query) use ($gridStart) {
+                        $query->whereNull('end_date')->where('date', '>=', $gridStart);
+                    });
+            })
+            ->where('source', $holidaySource->value)
+            ->when($holidaySource === HolidaySource::CutiSekolah, function ($query) use ($holidayState) {
+                $query->where(function ($query) use ($holidayState) {
+                    $query->where('type', HolidayType::Public->value)
+                        ->orWhere(function ($query) use ($holidayState) {
+                            $query->where('type', HolidayType::School->value)->where('state', $holidayState);
+                        });
+                });
+            })
             ->orderBy('date')
             ->get()
-            ->groupBy(fn (Holiday $holiday) => $holiday->date->format('Y-m-d'));
+            // A public holiday can be restricted to specific states (e.g. a
+            // Sultan's birthday) — appliesToState() checks that per row,
+            // since it isn't expressible as a plain column filter above.
+            ->filter(fn (Holiday $holiday) => $holiday->type !== HolidayType::Public || $holiday->appliesToState($holidayState));
+
+        $holidays = $this->holidaysByDay($holidayRows, $gridStart, $gridEnd);
 
         $days = [];
         $cursor = $gridStart;
@@ -368,6 +393,7 @@ class Calendar extends Component
             'bookingsByDay' => $bookings,
             'eventsByDay' => $events,
             'holidaysByDay' => $holidays,
+            'showsSchoolHolidays' => $holidaySource === HolidaySource::CutiSekolah,
             'viewingBooking' => $this->viewBookingId ? Booking::with(['user', 'space'])->find($this->viewBookingId) : null,
             'viewingEvent' => $this->viewEventId ? Event::with('registrationForm')->find($this->viewEventId) : null,
             'spaces' => $spaces,
@@ -391,6 +417,28 @@ class Calendar extends Component
             for ($cursor = $start; $cursor->lte($end); $cursor = $cursor->addDay()) {
                 $key = $cursor->format('Y-m-d');
                 $byDay->put($key, $byDay->get($key, collect())->push($event));
+            }
+        }
+
+        return $byDay;
+    }
+
+    /**
+     * Groups holidays by every day they span within [gridStart, gridEnd] —
+     * school holidays (e.g. Cuti Penggal) can run for a date range, unlike
+     * Google-sourced public holidays, which are always single-day.
+     */
+    private function holidaysByDay(Collection $holidays, CarbonImmutable $gridStart, CarbonImmutable $gridEnd): Collection
+    {
+        $byDay = collect();
+
+        foreach ($holidays as $holiday) {
+            $start = CarbonImmutable::parse($holiday->date)->max($gridStart);
+            $end = CarbonImmutable::parse($holiday->end_date ?? $holiday->date)->min($gridEnd);
+
+            for ($cursor = $start; $cursor->lte($end); $cursor = $cursor->addDay()) {
+                $key = $cursor->format('Y-m-d');
+                $byDay->put($key, $byDay->get($key, collect())->push($holiday));
             }
         }
 

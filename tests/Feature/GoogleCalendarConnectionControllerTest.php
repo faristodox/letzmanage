@@ -61,8 +61,46 @@ class GoogleCalendarConnectionControllerTest extends TestCase
         $this->assertStringContainsString('scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events', $location);
         $this->assertStringContainsString('redirect_uri=https%3A%2F%2Fapp.test%2Fsettings%2Fcalendar%2Fgoogle%2Fcallback', $location);
         $this->assertStringContainsString('access_type=offline', $location);
-        $this->assertStringContainsString('prompt=consent', $location);
+        $this->assertStringContainsString(
+            'prompt=consent+select_account',
+            $location,
+            'select_account must always be requested, or Google silently reuses whichever account is already signed into the browser instead of showing a picker.'
+        );
         $this->assertStringContainsString('state=', $location);
+    }
+
+    public function test_shared_connect_has_no_login_hint_when_no_account_was_previously_connected(): void
+    {
+        $organization = Organization::factory()->create();
+
+        $response = $this->actingAs($this->admin($organization))->get(route('settings.calendar.google.connect'));
+
+        $this->assertStringNotContainsString('login_hint', $response->headers->get('Location'));
+    }
+
+    public function test_shared_connect_hints_the_previously_connected_account_on_a_reconnect(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create([
+            'google_account_email' => 'org-account@example.com',
+        ]);
+
+        $response = $this->actingAs($this->admin($organization))->get(route('settings.calendar.google.connect'));
+
+        $this->assertStringContainsString('login_hint=org-account%40example.com', $response->headers->get('Location'));
+    }
+
+    public function test_individual_connect_hints_the_signed_in_users_own_email(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->individualMode()->create();
+
+        $staff = User::factory()->create(['organization_id' => $organization->id, 'email' => 'staff-account@example.com']);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $response = $this->actingAs($staff)->get(route('profile.google-calendar.connect'));
+
+        $this->assertStringContainsString('login_hint=staff-account%40example.com', $response->headers->get('Location'));
     }
 
     public function test_shared_callback_with_valid_state_stores_tokens_on_the_organization(): void

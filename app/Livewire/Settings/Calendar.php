@@ -3,7 +3,10 @@
 namespace App\Livewire\Settings;
 
 use App\Enums\CalendarSyncMode;
+use App\Enums\HolidaySource;
+use App\Enums\MalaysianState;
 use App\Models\OrganizationCalendarSetting;
+use App\Services\CutiSekolahHolidayService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -17,6 +20,10 @@ class Calendar extends Component
 
     public ?string $connectedEmail = null;
 
+    public string $holidaySource = 'google';
+
+    public ?string $holidayState = null;
+
     public function mount(): void
     {
         $this->authorize('viewAny', OrganizationCalendarSetting::class);
@@ -27,6 +34,44 @@ class Calendar extends Component
         $this->archiveEnabled = (bool) $setting?->archive_enabled;
         $this->isConnected = (bool) $setting?->hasConnectedAccount();
         $this->connectedEmail = $setting?->google_account_email;
+
+        $holidaySetting = auth()->user()->organization?->holidayCalendarSetting;
+
+        $this->holidaySource = $holidaySetting?->source?->value ?? HolidaySource::Google->value;
+        $this->holidayState = $holidaySetting?->state;
+    }
+
+    public function saveHolidaySettings(): void
+    {
+        $this->authorize('update', new OrganizationCalendarSetting);
+
+        $data = $this->validate([
+            'holidaySource' => ['required', Rule::enum(HolidaySource::class)],
+            'holidayState' => [Rule::requiredIf($this->holidaySource === HolidaySource::CutiSekolah->value), 'nullable', Rule::enum(MalaysianState::class)],
+        ]);
+
+        if ($data['holidaySource'] !== HolidaySource::CutiSekolah->value) {
+            $data['holidayState'] = null;
+            $this->holidayState = null;
+        }
+
+        auth()->user()->organization->holidayCalendarSetting()->updateOrCreate([], [
+            'source' => $data['holidaySource'],
+            'state' => $data['holidayState'],
+        ]);
+
+        $this->dispatch('settings-saved');
+    }
+
+    public function syncHolidays(CutiSekolahHolidayService $cutiSekolah): void
+    {
+        $this->authorize('update', new OrganizationCalendarSetting);
+
+        $this->saveHolidaySettings();
+
+        if ($this->holidaySource === HolidaySource::CutiSekolah->value) {
+            $cutiSekolah->sync($this->holidayState);
+        }
     }
 
     public function save(): void

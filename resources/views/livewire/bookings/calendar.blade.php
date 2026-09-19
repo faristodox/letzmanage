@@ -69,7 +69,7 @@
 
                     <div class="mt-1 space-y-1">
                         @foreach ($dayHolidays as $holiday)
-                            <div class="truncate rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700" title="{{ $holiday->title }}">
+                            <div class="truncate rounded px-1.5 py-0.5 text-[11px] font-medium {{ $holiday->type->badgeClasses() }}" title="{{ $holiday->title }} ({{ $holiday->type->label() }})">
                                 {{ $holiday->title }}
                             </div>
                         @endforeach
@@ -102,6 +102,9 @@
             <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-violet-50 ring-1 ring-inset ring-violet-600/20"></span> {{ __('Event') }}</span>
         @endif
         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-red-50 ring-1 ring-inset ring-red-600/20"></span> {{ __('Public Holiday') }}</span>
+        @if ($showsSchoolHolidays)
+            <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-sky-50 ring-1 ring-inset ring-sky-600/20"></span> {{ __('School Holiday') }}</span>
+        @endif
     </div>
 
     <!-- Create Booking / Event Modal -->

@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\HolidaySource;
+use App\Enums\HolidayType;
 use App\Models\Holiday;
 use App\Services\GoogleHolidayCalendarService;
 use Carbon\Carbon;
@@ -32,12 +34,17 @@ class SyncMalaysiaHolidays extends Command
             $existing = Holiday::query()
                 ->whereDate('date', $holiday['date'])
                 ->where('title', $holiday['title'])
+                ->where('source', HolidaySource::Google->value)
                 ->first();
 
             if ($existing) {
                 $existing->update(['description' => $holiday['description']]);
             } else {
-                Holiday::create($holiday);
+                Holiday::create([
+                    ...$holiday,
+                    'source' => HolidaySource::Google->value,
+                    'type' => HolidayType::Public->value,
+                ]);
             }
         }
 

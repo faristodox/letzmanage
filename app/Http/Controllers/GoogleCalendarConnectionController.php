@@ -29,8 +29,10 @@ class GoogleCalendarConnectionController extends Controller
         $state = Str::random(40);
         $request->session()->put('google_oauth_state', $state);
 
+        $loginHint = auth()->user()->organization?->calendarSetting?->google_account_email;
+
         return redirect()->away(
-            $this->oauth->buildAuthorizationUrl(config('services.google_calendar.redirect_uri_shared'), $state)
+            $this->oauth->buildAuthorizationUrl(config('services.google_calendar.redirect_uri_shared'), $state, $loginHint)
         );
     }
 
@@ -66,7 +68,7 @@ class GoogleCalendarConnectionController extends Controller
         $request->session()->put('google_oauth_state', $state);
 
         return redirect()->away(
-            $this->oauth->buildAuthorizationUrl(config('services.google_calendar.redirect_uri_individual'), $state)
+            $this->oauth->buildAuthorizationUrl(config('services.google_calendar.redirect_uri_individual'), $state, auth()->user()->email)
         );
     }
 

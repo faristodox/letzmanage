@@ -18,7 +18,7 @@
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h3 class="text-base font-semibold text-slate-900">{{ __('Google Integrations') }}</h3>
-                    <p class="mt-1 text-sm text-slate-500">{{ __('Connect Google for Calendar Sync (shared or per-staff) and File Archive.') }}</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ __('Connect Google for Calendar Sync (shared or per-staff) and File Archive, plus Holiday Calendar source.') }}</p>
                 </div>
                 <a href="{{ route('settings.calendar') }}" wire:navigate class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-700">
                     {{ __('Open →') }}

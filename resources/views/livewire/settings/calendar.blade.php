@@ -92,5 +92,43 @@
                 <x-primary-button type="submit">{{ __('Save Settings') }}</x-primary-button>
             </div>
         </form>
+
+        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" x-data="{ source: @entangle('holidaySource') }">
+            <h3 class="text-base font-semibold text-slate-900">{{ __('Holiday Calendar') }}</h3>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ __('Choose where public (and optionally school) holidays shown on the Calendar page come from.') }}
+            </p>
+
+            <form wire:submit="syncHolidays" class="mt-4 space-y-4">
+                <div>
+                    <x-input-label for="holidaySource" :value="__('Source')" />
+                    <select wire:model="holidaySource" x-model="source" id="holidaySource" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @foreach (App\Enums\HolidaySource::cases() as $source)
+                            <option value="{{ $source->value }}">{{ $source->label() }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('holidaySource')" class="mt-2" />
+                </div>
+
+                <div x-show="source === 'cutisekolah'">
+                    <x-input-label for="holidayState" :value="__('State (for school holidays)')" />
+                    <select wire:model="holidayState" id="holidayState" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">{{ __('Select a state') }}</option>
+                        @foreach (App\Enums\MalaysianState::cases() as $state)
+                            <option value="{{ $state->value }}">{{ $state->label() }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('holidayState')" class="mt-2" />
+                    <p class="mt-1 text-xs text-slate-400">{{ __('National public holidays are always included; the state only affects school holidays.') }}</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-3">
+                    <span wire:loading wire:target="syncHolidays" class="text-xs text-slate-400">{{ __('Syncing…') }}</span>
+                    <x-primary-button type="submit" wire:loading.attr="disabled" wire:target="syncHolidays">
+                        <span x-text="source === 'cutisekolah' ? '{{ __('Save & Sync') }}' : '{{ __('Save') }}'">{{ $holidaySource === 'cutisekolah' ? __('Save & Sync') : __('Save') }}</span>
+                    </x-primary-button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

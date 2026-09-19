@@ -68,6 +68,11 @@ class Organization extends Model
         return $this->hasOne(OrganizationCalendarSetting::class);
     }
 
+    public function holidayCalendarSetting(): HasOne
+    {
+        return $this->hasOne(HolidayCalendarSetting::class);
+    }
+
     public function committeeMembers(): HasMany
     {
         return $this->hasMany(CommitteeMember::class);

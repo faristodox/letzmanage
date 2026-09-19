@@ -21,25 +21,36 @@ class GoogleOAuthService
 
     // calendar.events for event CRUD, drive.file for the Archive feature
     // (access only to files/folders this app itself creates, not the whole
-    // Drive), userinfo.email so exchangeCodeForTokens() can attribute the
+    // Drive), spreadsheets.readonly for reading external sheets the
+    // connected account has been shared on (e.g. the WANITA committee
+    // calendar — see WanitaCalendarSyncService; drive.file wouldn't cover
+    // this since it only grants access to files the app itself created),
+    // userinfo.email so exchangeCodeForTokens() can attribute the
     // connection to an email address via the userinfo endpoint — that call
     // 401s with "Invalid Credentials" without this scope, even though the
     // calendar/drive-only token itself is otherwise valid.
-    private const SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+    private const SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/userinfo.email';
 
-    public function buildAuthorizationUrl(string $redirectUri, string $state): string
+    public function buildAuthorizationUrl(string $redirectUri, string $state, ?string $loginHint = null): string
     {
-        $query = http_build_query([
+        $query = http_build_query(array_filter([
             'client_id' => config('services.google_calendar.client_id'),
             'redirect_uri' => $redirectUri,
             'response_type' => 'code',
             'scope' => self::SCOPE,
             'access_type' => 'offline',
-            // Forces Google to re-issue a refresh_token even on a reconnect —
-            // without this, only the very first consent grant ever returns one.
-            'prompt' => 'consent',
+            // "consent" forces Google to re-issue a refresh_token even on a
+            // reconnect (without it, only the very first grant ever returns
+            // one); "select_account" forces the account picker to always
+            // show up — without it, Google silently continues with whatever
+            // Google account is already signed in on the browser instead,
+            // which is often not the account we actually want on a
+            // reconnect. login_hint below only pre-fills a suggestion on
+            // that picker, it doesn't make it appear on its own.
+            'prompt' => 'consent select_account',
             'state' => $state,
-        ]);
+            'login_hint' => $loginHint,
+        ]));
 
         return self::AUTH_URL.'?'.$query;
     }

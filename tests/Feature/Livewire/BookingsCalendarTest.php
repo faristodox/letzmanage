@@ -12,7 +12,9 @@ use App\Models\Branch;
 use App\Models\Event;
 use App\Models\EventForm;
 use App\Models\Holiday;
+use App\Models\HolidayCalendarSetting;
 use App\Models\OfficeSpace;
+use App\Models\Organization;
 use App\Models\User;
 use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -500,6 +502,19 @@ class BookingsCalendarTest extends TestCase
         $this->assertSame(6, substr_count($html, $event->title));
     }
 
+    public function test_the_full_calendar_page_renders(): void
+    {
+        $branch = Branch::factory()->create();
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        $staff = User::factory()->create(['branch_id' => $branch->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $this->actingAs($staff)
+            ->get(route('bookings.calendar'))
+            ->assertOk();
+    }
+
     public function test_holidays_within_the_visible_month_are_shown(): void
     {
         $branch = Branch::factory()->create();
@@ -527,5 +542,143 @@ class BookingsCalendarTest extends TestCase
             ->set('month', $monthStart->format('Y-m'))
             ->assertSee('Hari Raya Puasa')
             ->assertDontSee('Some Far Future Holiday');
+    }
+
+    public function test_organization_configured_for_other_source_hides_google_holidays_and_filters_school_holidays_by_state(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        HolidayCalendarSetting::factory()->for($organization)->otherSource('kuala-lumpur')->create();
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+        $date = $monthStart->copy()->addDays(4)->format('Y-m-d');
+
+        Holiday::create(['date' => $date, 'title' => 'Google Only Holiday', 'source' => 'google', 'type' => 'public']);
+        Holiday::create(['date' => $date, 'title' => 'Cuti Sekolah Public Holiday', 'source' => 'cutisekolah', 'type' => 'public']);
+        Holiday::create(['date' => $date, 'title' => 'KL School Holiday', 'source' => 'cutisekolah', 'type' => 'school', 'state' => 'kuala-lumpur']);
+        Holiday::create(['date' => $date, 'title' => 'Selangor School Holiday', 'source' => 'cutisekolah', 'type' => 'school', 'state' => 'selangor']);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->assertDontSee('Google Only Holiday')
+            ->assertSee('Cuti Sekolah Public Holiday')
+            ->assertSee('KL School Holiday')
+            ->assertDontSee('Selangor School Holiday');
+    }
+
+    public function test_a_public_holiday_restricted_to_one_state_only_shows_for_that_state(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        HolidayCalendarSetting::factory()->for($organization)->otherSource('kuala-lumpur')->create();
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+        $date = $monthStart->copy()->addDays(4)->format('Y-m-d');
+
+        Holiday::create([
+            'date' => $date,
+            'title' => 'Hari Keputeraan Sultan Kelantan',
+            'source' => 'cutisekolah',
+            'type' => 'public',
+            'applicable_states' => ['kelantan'],
+        ]);
+        Holiday::create([
+            'date' => $date,
+            'title' => 'Hari Wilayah Persekutuan',
+            'source' => 'cutisekolah',
+            'type' => 'public',
+            'applicable_states' => ['kuala-lumpur', 'labuan', 'putrajaya'],
+        ]);
+        Holiday::create([
+            'date' => $date,
+            'title' => 'Hari Kebangsaan',
+            'source' => 'cutisekolah',
+            'type' => 'public',
+            'applicable_states' => null,
+        ]);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->assertDontSee('Hari Keputeraan Sultan Kelantan')
+            ->assertSee('Hari Wilayah Persekutuan')
+            ->assertSee('Hari Kebangsaan');
+    }
+
+    public function test_multi_day_school_holiday_spans_every_day_it_covers(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        HolidayCalendarSetting::factory()->for($organization)->otherSource('kuala-lumpur')->create();
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+
+        Holiday::create([
+            'date' => $monthStart->copy()->addDays(9)->format('Y-m-d'),
+            'end_date' => $monthStart->copy()->addDays(11)->format('Y-m-d'),
+            'title' => 'Cuti Penggal 1',
+            'source' => 'cutisekolah',
+            'type' => 'school',
+            'state' => 'kuala-lumpur',
+        ]);
+
+        $html = Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->html();
+
+        // Each day cell renders the title twice (visible text + tooltip
+        // attribute), so 3 spanned days => 6 occurrences.
+        $this->assertSame(6, substr_count($html, 'Cuti Penggal 1'));
+    }
+
+    public function test_public_and_school_holidays_render_with_different_badge_colors(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        HolidayCalendarSetting::factory()->for($organization)->otherSource('kuala-lumpur')->create();
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+        $date = $monthStart->copy()->addDays(4)->format('Y-m-d');
+
+        Holiday::create(['date' => $date, 'title' => 'Hari Malaysia', 'source' => 'cutisekolah', 'type' => 'public']);
+        Holiday::create(['date' => $date, 'title' => 'Cuti Penggal 2', 'source' => 'cutisekolah', 'type' => 'school', 'state' => 'kuala-lumpur']);
+
+        $html = Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->html();
+
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*bg-red-50[^"]*"\s+title="Hari Malaysia \(Public Holiday\)"/',
+            $html,
+            'Public holiday badge must use the red color.'
+        );
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*bg-sky-50[^"]*"\s+title="Cuti Penggal 2 \(School Holiday\)"/',
+            $html,
+            'School holiday badge must use a different (sky) color from public holidays.'
+        );
     }
 }
