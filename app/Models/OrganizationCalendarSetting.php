@@ -9,16 +9,22 @@ use App\Models\Concerns\HasGoogleCalendarCredentials;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'organization_id', 'sync_mode', 'google_account_email',
     'google_access_token', 'google_refresh_token', 'google_token_expires_at',
     'google_calendar_id', 'google_connected_at', 'archive_enabled', 'drive_folder_id',
-    'wanita_sheet_url',
+    'wanita_sheet_url', 'wanita_portfolio_id',
 ])]
 class OrganizationCalendarSetting extends Model implements GoogleCalendarCredentialHolder
 {
     use BelongsToOrganization, HasFactory, HasGoogleCalendarCredentials;
+
+    public function wanitaPortfolio(): BelongsTo
+    {
+        return $this->belongsTo(Portfolio::class, 'wanita_portfolio_id');
+    }
 
     protected function casts(): array
     {

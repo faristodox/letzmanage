@@ -18,7 +18,7 @@ use App\Models\EventForm;
 class EventCreationService
 {
     /**
-     * @param  array{title: string, type?: EventType, start_date?: ?string, start_time?: ?string, end_date?: ?string, end_time?: ?string, location?: ?string, description?: ?string, banner_path?: ?string}  $attributes
+     * @param  array{title: string, type?: EventType, start_date?: ?string, start_time?: ?string, end_date?: ?string, end_time?: ?string, location?: ?string, description?: ?string, banner_path?: ?string, portfolio_id?: ?int, created_by?: ?int}  $attributes
      */
     public function createWithRegistrationForm(array $attributes): EventForm
     {
@@ -26,8 +26,8 @@ class EventCreationService
             ...$attributes,
             'slug' => Event::uniqueSlug($attributes['title']),
             'status' => EventStatus::Draft,
-            'created_by' => auth()->id(),
-            'portfolio_id' => auth()->user()->portfolio_id,
+            'created_by' => array_key_exists('created_by', $attributes) ? $attributes['created_by'] : auth()->id(),
+            'portfolio_id' => array_key_exists('portfolio_id', $attributes) ? $attributes['portfolio_id'] : auth()->user()->portfolio_id,
         ]);
 
         return EventForm::create([

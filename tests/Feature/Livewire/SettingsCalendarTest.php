@@ -296,6 +296,22 @@ class SettingsCalendarTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_admin_can_choose_a_portfolio_for_auto_created_wanita_events(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+        $portfolio = \App\Models\Portfolio::factory()->for($organization)->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaPortfolioId', $portfolio->id)
+            ->call('saveWanitaSettings')
+            ->assertHasNoErrors();
+
+        $setting = OrganizationCalendarSetting::where('organization_id', $organization->id)->first();
+        $this->assertSame($portfolio->id, $setting->wanita_portfolio_id);
+    }
+
     public function test_an_invalid_wanita_sheet_url_is_rejected(): void
     {
         $organization = Organization::factory()->create();

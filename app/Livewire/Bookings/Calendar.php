@@ -386,6 +386,10 @@ class Calendar extends Component
 
         $wanitaEvents = WanitaCalendarEvent::query()
             ->where('organization_id', auth()->user()->organization_id)
+            // Once promoted to a real Event, it already renders through the
+            // normal event badge above — showing the teal WANITA pill too
+            // would display the same entry twice.
+            ->whereNull('event_id')
             ->where('date', '>=', $gridStart)
             ->where('date', '<=', $gridEnd)
             ->orderBy('date')

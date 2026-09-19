@@ -154,6 +154,18 @@
                         <p class="mt-1 text-xs text-slate-400">{{ __('The connected Google account above must already have at least view access to this sheet.') }}</p>
                     </div>
 
+                    <div>
+                        <x-input-label for="wanitaPortfolioId" :value="__('Auto-create Draft Events for')" />
+                        <select wire:model="wanitaPortfolioId" id="wanitaPortfolioId" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">{{ __('None — calendar display only') }}</option>
+                            @foreach ($portfolios as $portfolio)
+                                <option value="{{ $portfolio->id }}">{{ $portfolio->name }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('wanitaPortfolioId')" class="mt-2" />
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Upcoming sheet entries are auto-created as Draft Events under this portfolio, ready to publish and add a registration form. Past entries are never auto-created, and an entry already turned into an Event is never touched again.') }}</p>
+                    </div>
+
                     <div class="flex items-center justify-end gap-3">
                         <span wire:loading wire:target="syncWanita" class="text-xs text-slate-400">{{ __('Syncing…') }}</span>
                         <x-primary-button type="submit" wire:loading.attr="disabled" wire:target="syncWanita">

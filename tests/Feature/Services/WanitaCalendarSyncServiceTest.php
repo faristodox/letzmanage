@@ -2,8 +2,11 @@
 
 namespace Tests\Feature\Services;
 
+use App\Enums\EventStatus;
+use App\Models\Event;
 use App\Models\Organization;
 use App\Models\OrganizationCalendarSetting;
+use App\Models\Portfolio;
 use App\Models\WanitaCalendarEvent;
 use App\Services\WanitaCalendarSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -162,6 +165,91 @@ class WanitaCalendarSyncServiceTest extends TestCase
         $service->sync($setting);
 
         $this->assertDatabaseMissing('wanita_calendar_events', ['title' => 'Green Event (WANITA)']);
+    }
+
+    public function test_no_events_are_promoted_when_no_portfolio_is_configured(): void
+    {
+        Http::fake(['https://sheets.googleapis.com/v4/spreadsheets/*' => Http::response($this->fakeSheetResponse())]);
+
+        $setting = $this->connectedSetting();
+        app(WanitaCalendarSyncService::class)->sync($setting);
+
+        $this->assertSame(3, WanitaCalendarEvent::where('organization_id', $setting->organization_id)->count());
+        $this->assertSame(0, Event::count());
+    }
+
+    public function test_future_entries_are_promoted_to_draft_events_but_lapsed_ones_are_not(): void
+    {
+        Http::fake(['https://sheets.googleapis.com/v4/spreadsheets/*' => Http::response($this->fakeSheetResponse())]);
+
+        $portfolio = Portfolio::factory()->create();
+        $setting = $this->connectedSetting();
+        $setting->update(['wanita_portfolio_id' => $portfolio->id]);
+
+        app(WanitaCalendarSyncService::class)->sync($setting);
+
+        // Green Event (2026-05-01) has already lapsed relative to today —
+        // no Event should be created for it, only the calendar-display row.
+        $this->assertDatabaseMissing('events', ['title' => 'Green Event (WANITA)']);
+        $greenCalendarEvent = WanitaCalendarEvent::where('title', 'Green Event (WANITA)')->first();
+        $this->assertNull($greenCalendarEvent->event_id);
+
+        // Turquoise Event and Multi Line Title (2027) are still upcoming.
+        foreach (['Turquoise Event (WANITA)', 'Multi Line Title (WANITA)'] as $title) {
+            $event = Event::where('title', $title)->first();
+            $this->assertNotNull($event, "Expected a Draft Event for {$title}.");
+            $this->assertSame(EventStatus::Draft, $event->status);
+            $this->assertSame($portfolio->id, $event->portfolio_id);
+            $this->assertNotNull($event->registrationForm);
+
+            $calendarEvent = WanitaCalendarEvent::where('title', $title)->first();
+            $this->assertSame($event->id, $calendarEvent->event_id);
+        }
+    }
+
+    public function test_resyncing_does_not_duplicate_an_already_promoted_event(): void
+    {
+        Http::fake(['https://sheets.googleapis.com/v4/spreadsheets/*' => Http::response($this->fakeSheetResponse())]);
+
+        $portfolio = Portfolio::factory()->create();
+        $setting = $this->connectedSetting();
+        $setting->update(['wanita_portfolio_id' => $portfolio->id]);
+
+        $service = app(WanitaCalendarSyncService::class);
+        $service->sync($setting);
+        $eventIdAfterFirstSync = WanitaCalendarEvent::where('title', 'Turquoise Event (WANITA)')->first()->event_id;
+
+        $service->sync($setting);
+
+        $this->assertSame(1, Event::where('title', 'Turquoise Event (WANITA)')->count());
+        $this->assertSame($eventIdAfterFirstSync, WanitaCalendarEvent::where('title', 'Turquoise Event (WANITA)')->first()->event_id);
+    }
+
+    public function test_a_promoted_entry_survives_even_if_removed_from_the_sheet(): void
+    {
+        $fixture = $this->fakeSheetResponse();
+        Http::fake(function () use (&$fixture) {
+            return Http::response($fixture);
+        });
+
+        $portfolio = Portfolio::factory()->create();
+        $setting = $this->connectedSetting();
+        $setting->update(['wanita_portfolio_id' => $portfolio->id]);
+
+        $service = app(WanitaCalendarSyncService::class);
+        $service->sync($setting);
+
+        $calendarEvent = WanitaCalendarEvent::where('title', 'Turquoise Event (WANITA)')->first();
+        $linkedEventId = $calendarEvent->event_id;
+        $this->assertNotNull($linkedEventId);
+
+        // The committee removed this entry from the sheet entirely.
+        $fixture['sheets'][0]['data'][0]['rowData'][4]['values'][7] = [];
+
+        $service->sync($setting);
+
+        $this->assertDatabaseHas('wanita_calendar_events', ['id' => $calendarEvent->id, 'event_id' => $linkedEventId]);
+        $this->assertDatabaseHas('events', ['id' => $linkedEventId]);
     }
 
     public function test_throws_when_no_sheet_url_is_configured(): void

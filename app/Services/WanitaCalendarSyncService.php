@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\EventType;
 use App\Models\OrganizationCalendarSetting;
 use App\Models\WanitaCalendarEvent;
 use App\Services\Concerns\AuthenticatesGoogleRequests;
@@ -49,7 +50,10 @@ class WanitaCalendarSyncService
         'september' => 9, 'oktober' => 10, 'november' => 11, 'disember' => 12,
     ];
 
-    public function __construct(private readonly GoogleOAuthService $oauth) {}
+    public function __construct(
+        private readonly GoogleOAuthService $oauth,
+        private readonly EventCreationService $eventCreation,
+    ) {}
 
     public function sync(OrganizationCalendarSetting $setting): void
     {
@@ -74,16 +78,82 @@ class WanitaCalendarSyncService
         $events = $this->parseEvents($rows);
 
         DB::transaction(function () use ($setting, $events) {
-            WanitaCalendarEvent::where('organization_id', $setting->organization_id)->delete();
+            $this->reconcileCalendarEvents($setting, $events);
+            $this->promoteUpcomingEntriesToEvents($setting);
+        });
+    }
 
-            foreach ($events as $event) {
+    /**
+     * Keeps `wanita_calendar_events` in sync with the sheet without ever
+     * touching a row that's already been promoted to a real Event
+     * (event_id set) — a sheet entry that already has an Event may be
+     * published with real registrations by now, so the sheet changing (or
+     * the row disappearing entirely) must not delete or recreate it.
+     *
+     * @param  array<int, array{date: string, title: string}>  $events
+     */
+    private function reconcileCalendarEvents(OrganizationCalendarSetting $setting, array $events): void
+    {
+        $currentKeys = collect($events)->map(fn (array $event) => $event['date'].'|'.$event['title'])->all();
+
+        WanitaCalendarEvent::where('organization_id', $setting->organization_id)
+            ->whereNull('event_id')
+            ->get()
+            ->reject(fn (WanitaCalendarEvent $existing) => in_array(
+                $existing->date->format('Y-m-d').'|'.$existing->title,
+                $currentKeys,
+                true
+            ))
+            ->each->delete();
+
+        foreach ($events as $event) {
+            // Not firstOrCreate() — its plain where() comparison against a
+            // date-cast column doesn't match the full-datetime format
+            // Eloquent actually stores (see the same gotcha already worked
+            // around in CutiSekolahHolidayService::replaceYear()).
+            $exists = WanitaCalendarEvent::where('organization_id', $setting->organization_id)
+                ->whereDate('date', $event['date'])
+                ->where('title', $event['title'])
+                ->exists();
+
+            if (! $exists) {
                 WanitaCalendarEvent::create([
                     'organization_id' => $setting->organization_id,
                     'date' => $event['date'],
                     'title' => $event['title'],
                 ]);
             }
-        });
+        }
+    }
+
+    /**
+     * Auto-creates a Draft Event (+ registration form) for every not-yet-
+     * promoted, not-yet-lapsed calendar entry, tagged to the configured
+     * WANITA portfolio — skipped entirely if no portfolio has been chosen
+     * yet in Settings > Calendar, or for anything already in the past
+     * (nothing useful to publish/register for an event that already
+     * happened).
+     */
+    private function promoteUpcomingEntriesToEvents(OrganizationCalendarSetting $setting): void
+    {
+        if ($setting->wanita_portfolio_id === null) {
+            return;
+        }
+
+        WanitaCalendarEvent::where('organization_id', $setting->organization_id)
+            ->whereNull('event_id')
+            ->whereDate('date', '>=', now()->toDateString())
+            ->each(function (WanitaCalendarEvent $calendarEvent) use ($setting) {
+                $registrationForm = $this->eventCreation->createWithRegistrationForm([
+                    'type' => EventType::Event,
+                    'title' => $calendarEvent->title,
+                    'start_date' => $calendarEvent->date->toDateString(),
+                    'portfolio_id' => $setting->wanita_portfolio_id,
+                    'created_by' => null,
+                ]);
+
+                $calendarEvent->update(['event_id' => $registrationForm->event_id]);
+            });
     }
 
     /**

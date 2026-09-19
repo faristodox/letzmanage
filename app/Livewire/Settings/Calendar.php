@@ -6,6 +6,7 @@ use App\Enums\CalendarSyncMode;
 use App\Enums\HolidaySource;
 use App\Enums\MalaysianState;
 use App\Models\OrganizationCalendarSetting;
+use App\Models\Portfolio;
 use App\Services\CutiSekolahHolidayService;
 use App\Services\WanitaCalendarSyncService;
 use Illuminate\Validation\Rule;
@@ -28,6 +29,8 @@ class Calendar extends Component
 
     public string $wanitaSheetUrl = '';
 
+    public ?int $wanitaPortfolioId = null;
+
     public ?string $wanitaSyncError = null;
 
     public function mount(): void
@@ -41,6 +44,7 @@ class Calendar extends Component
         $this->isConnected = (bool) $setting?->hasConnectedAccount();
         $this->connectedEmail = $setting?->google_account_email;
         $this->wanitaSheetUrl = (string) $setting?->wanita_sheet_url;
+        $this->wanitaPortfolioId = $setting?->wanita_portfolio_id;
 
         $holidaySetting = auth()->user()->organization?->holidayCalendarSetting;
 
@@ -87,6 +91,7 @@ class Calendar extends Component
 
         $data = $this->validate([
             'wanitaSheetUrl' => ['nullable', 'string', 'max:500'],
+            'wanitaPortfolioId' => ['nullable', 'integer', 'exists:portfolios,id'],
         ]);
 
         if ($data['wanitaSheetUrl'] && WanitaCalendarSyncService::extractSheetId($data['wanitaSheetUrl']) === null) {
@@ -97,6 +102,7 @@ class Calendar extends Component
 
         auth()->user()->organization->calendarSetting()->updateOrCreate([], [
             'wanita_sheet_url' => $data['wanitaSheetUrl'] ?: null,
+            'wanita_portfolio_id' => $data['wanitaPortfolioId'],
         ]);
 
         $this->dispatch('settings-saved');
@@ -166,6 +172,8 @@ class Calendar extends Component
 
     public function render()
     {
-        return view('livewire.settings.calendar');
+        return view('livewire.settings.calendar', [
+            'portfolios' => Portfolio::orderBy('name')->get(),
+        ]);
     }
 }
