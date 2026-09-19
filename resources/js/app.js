@@ -1,6 +1,14 @@
 import Chart from 'chart.js/auto';
 import QRCode from 'qrcode';
 
+// PWA installability — see public/sw.js for what it does (and deliberately
+// doesn't do: no caching of app content, only a friendly offline page).
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+    });
+}
+
 // Registered for the <x-charts.card> Blade component — one Chart.js instance
 // per card, initialized fresh whenever Livewire swaps in new chart data
 // (the wrapping element is wire:ignore + keyed on a hash of the data).
