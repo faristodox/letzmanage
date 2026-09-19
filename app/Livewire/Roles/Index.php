@@ -43,6 +43,13 @@ class Index extends Component
         $this->saved = false;
     }
 
+    /**
+     * Only replaces the permissions this component's own $matrix snapshot
+     * knows about — a stale snapshot (page left open across a deploy that
+     * added a new PermissionName case) has no key for that permission at
+     * all, so it's left exactly as it is in the database instead of being
+     * silently dropped by a wholesale syncPermissions() replace.
+     */
     public function save(): void
     {
         $this->authorize('manage roles');
@@ -53,15 +60,15 @@ class Index extends Component
             }
 
             $role = Role::findByName($roleName->value);
-            $permissions = collect($this->matrix[$roleName->value] ?? [])
-                ->filter()
-                ->keys()
-                ->toArray();
+            $known = array_keys($this->matrix[$roleName->value] ?? []);
+            $toggledOn = collect($this->matrix[$roleName->value] ?? [])->filter()->keys()->all();
+            $unknownButGranted = $role->permissions->pluck('name')->diff($known)->all();
 
-            $role->syncPermissions($permissions);
+            $role->syncPermissions(array_unique(array_merge($toggledOn, $unknownButGranted)));
         }
 
         $this->saved = true;
+        $this->loadMatrix();
     }
 
     public function render()
