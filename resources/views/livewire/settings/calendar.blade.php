@@ -141,6 +141,12 @@
                 <p class="mt-4 text-sm text-amber-700">{{ __('Connect a Google account above first — the connected account needs access to the sheet.') }}</p>
             @else
                 <form wire:submit="syncWanita" class="mt-4 space-y-4">
+                    @if ($wanitaSyncError)
+                        <div class="rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-600/10">
+                            {{ $wanitaSyncError }}
+                        </div>
+                    @endif
+
                     <div>
                         <x-input-label for="wanitaSheetUrl" :value="__('Google Sheet URL')" />
                         <x-text-input wire:model="wanitaSheetUrl" id="wanitaSheetUrl" type="text" class="mt-1 block w-full" placeholder="https://docs.google.com/spreadsheets/d/..." />

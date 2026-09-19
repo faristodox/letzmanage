@@ -10,6 +10,7 @@ use App\Services\CutiSekolahHolidayService;
 use App\Services\WanitaCalendarSyncService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use RuntimeException;
 
 class Calendar extends Component
 {
@@ -26,6 +27,8 @@ class Calendar extends Component
     public ?string $holidayState = null;
 
     public string $wanitaSheetUrl = '';
+
+    public ?string $wanitaSyncError = null;
 
     public function mount(): void
     {
@@ -103,6 +106,7 @@ class Calendar extends Component
     {
         $this->authorize('update', new OrganizationCalendarSetting);
 
+        $this->wanitaSyncError = null;
         $this->saveWanitaSettings();
 
         // A fresh query, not the cached ->calendarSetting relation property —
@@ -112,7 +116,12 @@ class Calendar extends Component
         $setting = auth()->user()->organization->calendarSetting()->first();
 
         if ($setting?->isWanitaSyncConfigured()) {
-            $wanita->sync($setting);
+            try {
+                $wanita->sync($setting);
+            } catch (RuntimeException $e) {
+                report($e);
+                $this->wanitaSyncError = __('Could not sync the sheet — make sure the URL is correct and the connected Google account has at least view access to it.');
+            }
         }
     }
 

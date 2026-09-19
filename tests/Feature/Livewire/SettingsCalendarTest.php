@@ -339,4 +339,20 @@ class SettingsCalendarTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_sync_wanita_shows_a_friendly_error_instead_of_crashing_when_the_sheet_is_unreachable(): void
+    {
+        Http::fake(['https://sheets.googleapis.com/v4/spreadsheets/*' => Http::response(['error' => ['message' => 'Requested entity was not found.']], 404)]);
+
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        $component = Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaSheetUrl', 'https://docs.google.com/spreadsheets/d/abc123XYZ/edit')
+            ->call('syncWanita');
+
+        $this->assertNotNull($component->get('wanitaSyncError'));
+        $component->assertSee('Could not sync the sheet');
+    }
 }
