@@ -16,6 +16,7 @@ use App\Models\Portfolio;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -375,4 +376,125 @@ class EventsIndexTest extends TestCase
 
         $this->assertSame(1, EventForm::where('event_id', $event->id)->where('type', EventFormType::Feedback)->count());
     }
+
+    private function fakeGeminiResponse(array $data): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    ['content' => ['parts' => [['text' => json_encode($data)]]]],
+                ],
+            ]),
+        ]);
+    }
+
+    public function test_committee_member_can_create_an_event_from_a_poster_message(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+
+        $this->fakeGeminiResponse([
+            'title' => 'Program Wanita',
+            'start_date' => '2026-10-05',
+            'start_time' => '09:00',
+            'end_date' => null,
+            'end_time' => null,
+            'location' => 'Dewan Serbaguna',
+            'description' => 'A community program.',
+        ]);
+
+        $portfolio = Portfolio::factory()->create();
+        $committeeMember = User::factory()->create(['portfolio_id' => $portfolio->id]);
+        $committeeMember->assignRole(RoleName::CommitteeMember->value);
+
+        Livewire::actingAs($committeeMember)
+            ->test(Index::class)
+            ->call('createFromPoster')
+            ->set('posterMessage', 'Program Wanita, 5 Oktober, 9 pagi, di Dewan Serbaguna')
+            ->call('extractFromPoster')
+            ->assertSet('posterStep', 'review')
+            ->assertSet('title', 'Program Wanita')
+            ->assertSet('location', 'Dewan Serbaguna')
+            ->call('saveFromPoster')
+            ->assertHasNoErrors()
+            ->assertRedirect();
+
+        $event = Event::where('title', 'Program Wanita')->first();
+        $this->assertNotNull($event);
+        $this->assertSame(EventType::Event, $event->type);
+        $this->assertSame($portfolio->id, $event->portfolio_id);
+        $this->assertSame('Dewan Serbaguna', $event->location);
+        $this->assertSame('A community program.', $event->description);
+        $this->assertNull($event->banner_path);
+    }
+
+    public function test_creating_from_poster_with_an_image_stores_it_as_the_events_banner(): void
+    {
+        Storage::fake('public');
+        config(['services.gemini.api_key' => 'test-key']);
+
+        $this->fakeGeminiResponse([
+            'title' => 'Mesyuarat Agung',
+            'start_date' => null,
+            'start_time' => null,
+            'end_date' => null,
+            'end_time' => null,
+            'location' => null,
+            'description' => null,
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('createFromPoster')
+            ->set('posterImage', UploadedFile::fake()->image('poster.jpg'))
+            ->call('extractFromPoster')
+            ->assertSet('posterStep', 'review')
+            ->call('saveFromPoster')
+            ->assertHasNoErrors();
+
+        $event = Event::where('title', 'Mesyuarat Agung')->first();
+        $this->assertNotNull($event);
+        $this->assertNotNull($event->banner_path);
+        Storage::disk('public')->assertExists($event->banner_path);
+    }
+
+    public function test_extracting_from_poster_requires_an_image_or_a_message(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('createFromPoster')
+            ->call('extractFromPoster')
+            ->assertHasErrors(['posterMessage'])
+            ->assertSet('posterStep', 'upload');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_extraction_failure_shows_an_inline_error_and_creates_nothing(): void
+    {
+        config(['services.gemini.api_key' => 'test-key']);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response(['error' => 'boom'], 500),
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRole(RoleName::Admin->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('createFromPoster')
+            ->set('posterMessage', 'Some event message')
+            ->call('extractFromPoster')
+            ->assertSet('posterStep', 'upload')
+            ->assertSet('extractionError', fn ($value) => ! empty($value));
+
+        $this->assertSame(0, Event::count());
+    }
+
 }

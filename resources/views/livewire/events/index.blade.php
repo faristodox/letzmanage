@@ -1,6 +1,12 @@
 <div>
-    <div class="mb-4 flex items-center justify-end">
+    <div class="mb-4 flex items-center justify-end gap-3">
         @can('create', App\Models\Event::class)
+            <x-secondary-button wire:click="createFromPoster">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3-3-3m0 0-3 3m3-3V15" />
+                </svg>
+                {{ __('Create from Poster') }}
+            </x-secondary-button>
             <x-primary-button wire:click="create">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -160,6 +166,115 @@
                         <x-primary-button type="submit">{{ __('Create & Continue') }}</x-primary-button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- Create from Poster Modal -->
+    @if ($showPosterModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-0">
+            <div class="fixed inset-0 bg-slate-900/50" wire:click="closePosterModal"></div>
+
+            <div class="relative mx-auto mb-6 transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all sm:w-full sm:max-w-lg">
+                <div class="p-6 sm:p-8">
+                    @if ($posterStep === 'upload')
+                        <h2 class="text-lg font-semibold text-slate-900">{{ __('Create Event from Poster') }}</h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            {{ __("Upload a poster image and/or paste the event message — we'll extract the details for you to review.") }}
+                        </p>
+
+                        @if ($extractionError)
+                            <div class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-600/10">
+                                {{ $extractionError }}
+                            </div>
+                        @endif
+
+                        <div class="mt-4">
+                            <x-input-label for="posterImage" :value="__('Poster Image (optional)')" />
+                            @if ($posterImage)
+                                <img src="{{ $posterImage->temporaryUrl() }}" alt="{{ __('Preview') }}" class="mt-2 max-h-48 w-full max-w-xs rounded-lg object-cover ring-1 ring-slate-200">
+                            @endif
+                            <input wire:model="posterImage" id="posterImage" type="file" accept="image/*" class="mt-2 block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div wire:loading wire:target="posterImage" class="mt-1 text-xs text-slate-500">{{ __('Uploading...') }}</div>
+                            <x-input-error :messages="$errors->get('posterImage')" class="mt-2" />
+                        </div>
+
+                        <div class="mt-4">
+                            <x-input-label for="posterMessage" :value="__('Event Message (optional)')" />
+                            <textarea wire:model="posterMessage" id="posterMessage" rows="4" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="{{ __('Paste the WhatsApp/promotional message here...') }}"></textarea>
+                            <x-input-error :messages="$errors->get('posterMessage')" class="mt-2" />
+                        </div>
+
+                        <div class="mt-6 flex justify-end gap-3">
+                            <x-secondary-button type="button" wire:click="closePosterModal">{{ __('Cancel') }}</x-secondary-button>
+                            <x-primary-button type="button" wire:click="extractFromPoster" wire:loading.attr="disabled" wire:target="extractFromPoster">
+                                <span wire:loading.remove wire:target="extractFromPoster">{{ __('Extract Details') }}</span>
+                                <span wire:loading wire:target="extractFromPoster">{{ __('Extracting...') }}</span>
+                            </x-primary-button>
+                        </div>
+                    @else
+                        <h2 class="text-lg font-semibold text-slate-900">{{ __('Review Event Details') }}</h2>
+                        <p class="mt-1 text-sm text-slate-500">{{ __("Double check before creating — AI extraction isn't perfect.") }}</p>
+
+                        @if ($posterImage)
+                            <img src="{{ $posterImage->temporaryUrl() }}" alt="{{ __('Poster') }}" class="mt-4 max-h-48 w-full max-w-xs rounded-lg object-cover ring-1 ring-slate-200">
+                        @endif
+
+                        <form wire:submit="saveFromPoster" class="mt-4 space-y-4">
+                            <div>
+                                <x-input-label for="poster_title" :value="__('Title')" />
+                                <x-text-input wire:model="title" id="poster_title" type="text" class="mt-1 block w-full" autofocus />
+                                <x-input-error :messages="$errors->get('title')" class="mt-2" />
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <x-input-label for="poster_startDate" :value="__('Event Date')" />
+                                    <x-text-input wire:model="startDate" id="poster_startDate" type="date" class="mt-1 block w-full" />
+                                    <x-input-error :messages="$errors->get('startDate')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <x-input-label for="poster_startTime" :value="__('Start Time (optional)')" />
+                                    <x-text-input wire:model="startTime" id="poster_startTime" type="time" class="mt-1 block w-full" />
+                                    <x-input-error :messages="$errors->get('startTime')" class="mt-2" />
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <x-input-label for="poster_endDate" :value="__('End Date (optional)')" />
+                                    <x-text-input wire:model="endDate" id="poster_endDate" type="date" class="mt-1 block w-full" />
+                                    <x-input-error :messages="$errors->get('endDate')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <x-input-label for="poster_endTime" :value="__('End Time (optional)')" />
+                                    <x-text-input wire:model="endTime" id="poster_endTime" type="time" class="mt-1 block w-full" />
+                                    <x-input-error :messages="$errors->get('endTime')" class="mt-2" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <x-input-label for="poster_location" :value="__('Location (optional)')" />
+                                <x-text-input wire:model="location" id="poster_location" type="text" class="mt-1 block w-full" />
+                                <x-input-error :messages="$errors->get('location')" class="mt-2" />
+                            </div>
+
+                            <div>
+                                <x-input-label for="poster_description" :value="__('Description (optional)')" />
+                                <textarea wire:model="description" id="poster_description" rows="3" class="mt-1 block w-full rounded-lg border-slate-200 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                <x-input-error :messages="$errors->get('description')" class="mt-2" />
+                            </div>
+
+                            <div class="mt-6 flex justify-between gap-3">
+                                <x-secondary-button type="button" wire:click="backToPoster">{{ __('Back') }}</x-secondary-button>
+                                <div class="flex gap-3">
+                                    <x-secondary-button type="button" wire:click="closePosterModal">{{ __('Cancel') }}</x-secondary-button>
+                                    <x-primary-button type="submit">{{ __('Create Event') }}</x-primary-button>
+                                </div>
+                            </div>
+                        </form>
+                    @endif
+                </div>
             </div>
         </div>
     @endif
