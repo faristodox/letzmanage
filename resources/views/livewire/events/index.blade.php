@@ -103,16 +103,18 @@
                         {{ $type === 'committee_meeting' ? __("You'll set up attendance check-in on the next screen.") : __("You'll add registration fields on the next screen.") }}
                     </p>
 
-                    <div class="mt-4 flex gap-1 rounded-lg bg-slate-100 p-1">
-                        <button type="button" wire:click="$set('type', 'event')"
-                            class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'event' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
-                            {{ __('Event') }}
-                        </button>
-                        <button type="button" wire:click="$set('type', 'committee_meeting')"
-                            class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'committee_meeting' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
-                            {{ __('Committee Meeting') }}
-                        </button>
-                    </div>
+                    @if ($canCreateCommitteeMeeting)
+                        <div class="mt-4 flex gap-1 rounded-lg bg-slate-100 p-1">
+                            <button type="button" wire:click="$set('type', 'event')"
+                                class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'event' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                                {{ __('Event') }}
+                            </button>
+                            <button type="button" wire:click="$set('type', 'committee_meeting')"
+                                class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $type === 'committee_meeting' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
+                                {{ __('Committee Meeting') }}
+                            </button>
+                        </div>
+                    @endif
 
                     <div class="mt-4">
                         <x-input-label for="title" :value="__('Title')" />

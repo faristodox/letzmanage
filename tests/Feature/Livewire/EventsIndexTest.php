@@ -74,6 +74,42 @@ class EventsIndexTest extends TestCase
         $this->assertSame(EventType::CommitteeMeeting, $event->type);
     }
 
+    public function test_committee_member_cannot_create_a_committee_meeting_event(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+        $committeeMember = User::factory()->create(['portfolio_id' => $portfolio->id]);
+        $committeeMember->assignRole(RoleName::CommitteeMember->value);
+
+        Livewire::actingAs($committeeMember)
+            ->test(Index::class)
+            ->call('create')
+            ->set('type', 'committee_meeting')
+            ->set('title', 'Mesyuarat Cuba Bypass')
+            ->call('save')
+            ->assertHasErrors(['type']);
+
+        $this->assertDatabaseMissing('events', ['title' => 'Mesyuarat Cuba Bypass']);
+    }
+
+    public function test_committee_member_can_still_create_a_regular_event(): void
+    {
+        $portfolio = Portfolio::factory()->create();
+        $committeeMember = User::factory()->create(['portfolio_id' => $portfolio->id]);
+        $committeeMember->assignRole(RoleName::CommitteeMember->value);
+
+        Livewire::actingAs($committeeMember)
+            ->test(Index::class)
+            ->call('create')
+            ->set('title', 'Program Wanita')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $event = Event::where('title', 'Program Wanita')->first();
+        $this->assertNotNull($event);
+        $this->assertSame(EventType::Event, $event->type);
+        $this->assertSame($portfolio->id, $event->portfolio_id);
+    }
+
     public function test_admin_can_set_the_schedule_and_location_when_creating_an_event(): void
     {
         $admin = User::factory()->create();

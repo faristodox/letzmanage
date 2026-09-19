@@ -56,12 +56,25 @@ class Index extends Component
         $this->resetValidation();
     }
 
+    /**
+     * Committee Meeting is reserved for Admin/Manager — a portfolio-scoped
+     * Committee Member account can only create the public-facing Event
+     * type, so they may only ever pick 'event' here regardless of what the
+     * client sends.
+     */
+    private function allowedEventTypes(): array
+    {
+        return auth()->user()->portfolio_id
+            ? [EventType::Event->value]
+            : array_column(EventType::cases(), 'value');
+    }
+
     public function save(EventCreationService $eventCreation): void
     {
         $this->authorize('create', Event::class);
 
         $data = $this->validate([
-            'type' => ['required', Rule::in(array_column(EventType::cases(), 'value'))],
+            'type' => ['required', Rule::in($this->allowedEventTypes())],
             'title' => ['required', 'string', 'max:255'],
             'startDate' => ['nullable', 'date'],
             'startTime' => ['nullable', 'date_format:H:i'],
@@ -139,6 +152,7 @@ class Index extends Component
 
         return view('livewire.events.index', [
             'events' => $events,
+            'canCreateCommitteeMeeting' => auth()->user()->portfolio_id === null,
         ]);
     }
 }
