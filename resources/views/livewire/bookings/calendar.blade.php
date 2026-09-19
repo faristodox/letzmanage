@@ -58,6 +58,7 @@
                     $dayBookings = $bookingsByDay->get($key, collect());
                     $dayEvents = $eventsByDay->get($key, collect());
                     $dayHolidays = $holidaysByDay->get($key, collect());
+                    $dayWanitaEvents = $wanitaEventsByDay->get($key, collect());
                 @endphp
                 <div class="min-h-[100px] border-b border-r border-slate-100 p-2 {{ $isCurrentMonth ? 'bg-white' : 'bg-slate-50' }}">
                     <div class="flex items-center justify-between">
@@ -89,6 +90,12 @@
                                 {{ $event->start_time ? \Illuminate\Support\Carbon::createFromFormat('H:i', $event->start_time)->format('H:i').' ' : '' }}{{ $event->title }}
                             </div>
                         @endforeach
+
+                        @foreach ($dayWanitaEvents as $wanitaEvent)
+                            <div class="truncate rounded bg-teal-50 px-1.5 py-0.5 text-[11px] font-medium text-teal-700" title="{{ $wanitaEvent->title }}">
+                                {{ $wanitaEvent->title }}
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             @endforeach
@@ -100,6 +107,9 @@
         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-amber-50 ring-1 ring-inset ring-amber-600/20"></span> {{ __('Pending Booking') }}</span>
         @if ($canViewEvents)
             <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-violet-50 ring-1 ring-inset ring-violet-600/20"></span> {{ __('Event') }}</span>
+        @endif
+        @if ($showsWanitaEvents)
+            <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-teal-50 ring-1 ring-inset ring-teal-600/20"></span> {{ __('WANITA') }}</span>
         @endif
         <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded bg-red-50 ring-1 ring-inset ring-red-600/20"></span> {{ __('Public Holiday') }}</span>
         @if ($showsSchoolHolidays)

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
     'organization_id', 'sync_mode', 'google_account_email',
     'google_access_token', 'google_refresh_token', 'google_token_expires_at',
     'google_calendar_id', 'google_connected_at', 'archive_enabled', 'drive_folder_id',
+    'wanita_sheet_url',
 ])]
 class OrganizationCalendarSetting extends Model implements GoogleCalendarCredentialHolder
 {
@@ -49,5 +50,10 @@ class OrganizationCalendarSetting extends Model implements GoogleCalendarCredent
     public function isArchiveReady(): bool
     {
         return $this->archive_enabled && $this->hasConnectedAccount();
+    }
+
+    public function isWanitaSyncConfigured(): bool
+    {
+        return filled($this->wanita_sheet_url) && $this->hasConnectedAccount();
     }
 }

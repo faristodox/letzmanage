@@ -13,6 +13,7 @@ use App\Models\Booking;
 use App\Models\Event;
 use App\Models\Holiday;
 use App\Models\OfficeSpace;
+use App\Models\WanitaCalendarEvent;
 use App\Services\BookingService;
 use App\Services\EventCalendarSyncService;
 use App\Services\EventCreationService;
@@ -379,6 +380,14 @@ class Calendar extends Component
 
         $holidays = $this->holidaysByDay($holidayRows, $gridStart, $gridEnd);
 
+        $wanitaEvents = WanitaCalendarEvent::query()
+            ->where('organization_id', auth()->user()->organization_id)
+            ->where('date', '>=', $gridStart)
+            ->where('date', '<=', $gridEnd)
+            ->orderBy('date')
+            ->get()
+            ->groupBy(fn (WanitaCalendarEvent $event) => $event->date->format('Y-m-d'));
+
         $days = [];
         $cursor = $gridStart;
 
@@ -394,6 +403,8 @@ class Calendar extends Component
             'eventsByDay' => $events,
             'holidaysByDay' => $holidays,
             'showsSchoolHolidays' => $holidaySource === HolidaySource::CutiSekolah,
+            'wanitaEventsByDay' => $wanitaEvents,
+            'showsWanitaEvents' => (bool) auth()->user()->organization?->calendarSetting?->isWanitaSyncConfigured(),
             'viewingBooking' => $this->viewBookingId ? Booking::with(['user', 'space'])->find($this->viewBookingId) : null,
             'viewingEvent' => $this->viewEventId ? Event::with('registrationForm')->find($this->viewEventId) : null,
             'spaces' => $spaces,

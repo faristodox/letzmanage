@@ -130,5 +130,32 @@
                 </div>
             </form>
         </div>
+
+        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="text-base font-semibold text-slate-900">{{ __('WANITA Calendar Sync') }}</h3>
+            <p class="mt-1 text-sm text-slate-500">
+                {{ __('Sync events from the Jawatankuasa WANITA committee\'s Google Sheet calendar onto the Calendar page. Only green and turquoise events are imported; each is tagged "(WANITA)".') }}
+            </p>
+
+            @unless ($isConnected)
+                <p class="mt-4 text-sm text-amber-700">{{ __('Connect a Google account above first — the connected account needs access to the sheet.') }}</p>
+            @else
+                <form wire:submit="syncWanita" class="mt-4 space-y-4">
+                    <div>
+                        <x-input-label for="wanitaSheetUrl" :value="__('Google Sheet URL')" />
+                        <x-text-input wire:model="wanitaSheetUrl" id="wanitaSheetUrl" type="text" class="mt-1 block w-full" placeholder="https://docs.google.com/spreadsheets/d/..." />
+                        <x-input-error :messages="$errors->get('wanitaSheetUrl')" class="mt-2" />
+                        <p class="mt-1 text-xs text-slate-400">{{ __('The connected Google account above must already have at least view access to this sheet.') }}</p>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3">
+                        <span wire:loading wire:target="syncWanita" class="text-xs text-slate-400">{{ __('Syncing…') }}</span>
+                        <x-primary-button type="submit" wire:loading.attr="disabled" wire:target="syncWanita">
+                            {{ __('Save & Sync') }}
+                        </x-primary-button>
+                    </div>
+                </form>
+            @endunless
+        </div>
     </div>
 </div>

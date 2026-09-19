@@ -269,4 +269,74 @@ class SettingsCalendarTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_wanita_card_is_hidden_until_a_google_account_is_connected(): void
+    {
+        $organization = Organization::factory()->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->assertDontSee('wanitaSheetUrl');
+    }
+
+    public function test_admin_can_save_the_wanita_sheet_url_without_syncing(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaSheetUrl', 'https://docs.google.com/spreadsheets/d/abc123XYZ/edit')
+            ->call('saveWanitaSettings')
+            ->assertHasNoErrors();
+
+        $setting = OrganizationCalendarSetting::where('organization_id', $organization->id)->first();
+        $this->assertSame('https://docs.google.com/spreadsheets/d/abc123XYZ/edit', $setting->wanita_sheet_url);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_an_invalid_wanita_sheet_url_is_rejected(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaSheetUrl', 'not a sheet url')
+            ->call('saveWanitaSettings')
+            ->assertHasErrors('wanitaSheetUrl');
+    }
+
+    public function test_sync_wanita_saves_then_calls_the_sync_service(): void
+    {
+        Http::fake(['https://sheets.googleapis.com/v4/spreadsheets/*' => Http::response([
+            'sheets' => [['data' => [['rowData' => []]]]],
+        ])]);
+
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaSheetUrl', 'https://docs.google.com/spreadsheets/d/abc123XYZ/edit')
+            ->call('syncWanita')
+            ->assertHasNoErrors();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'abc123XYZ'));
+    }
+
+    public function test_sync_wanita_does_nothing_over_http_when_no_sheet_url_is_set(): void
+    {
+        $organization = Organization::factory()->create();
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create();
+
+        Livewire::actingAs($this->admin($organization))
+            ->test(Calendar::class)
+            ->set('wanitaSheetUrl', '')
+            ->call('syncWanita')
+            ->assertHasNoErrors();
+
+        Http::assertNothingSent();
+    }
 }

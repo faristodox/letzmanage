@@ -7,6 +7,7 @@ use App\Enums\HolidaySource;
 use App\Enums\MalaysianState;
 use App\Models\OrganizationCalendarSetting;
 use App\Services\CutiSekolahHolidayService;
+use App\Services\WanitaCalendarSyncService;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -24,6 +25,8 @@ class Calendar extends Component
 
     public ?string $holidayState = null;
 
+    public string $wanitaSheetUrl = '';
+
     public function mount(): void
     {
         $this->authorize('viewAny', OrganizationCalendarSetting::class);
@@ -34,6 +37,7 @@ class Calendar extends Component
         $this->archiveEnabled = (bool) $setting?->archive_enabled;
         $this->isConnected = (bool) $setting?->hasConnectedAccount();
         $this->connectedEmail = $setting?->google_account_email;
+        $this->wanitaSheetUrl = (string) $setting?->wanita_sheet_url;
 
         $holidaySetting = auth()->user()->organization?->holidayCalendarSetting;
 
@@ -71,6 +75,44 @@ class Calendar extends Component
 
         if ($this->holidaySource === HolidaySource::CutiSekolah->value) {
             $cutiSekolah->sync($this->holidayState);
+        }
+    }
+
+    public function saveWanitaSettings(): void
+    {
+        $this->authorize('update', new OrganizationCalendarSetting);
+
+        $data = $this->validate([
+            'wanitaSheetUrl' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($data['wanitaSheetUrl'] && WanitaCalendarSyncService::extractSheetId($data['wanitaSheetUrl']) === null) {
+            $this->addError('wanitaSheetUrl', __('That doesn\'t look like a valid Google Sheets URL.'));
+
+            return;
+        }
+
+        auth()->user()->organization->calendarSetting()->updateOrCreate([], [
+            'wanita_sheet_url' => $data['wanitaSheetUrl'] ?: null,
+        ]);
+
+        $this->dispatch('settings-saved');
+    }
+
+    public function syncWanita(WanitaCalendarSyncService $wanita): void
+    {
+        $this->authorize('update', new OrganizationCalendarSetting);
+
+        $this->saveWanitaSettings();
+
+        // A fresh query, not the cached ->calendarSetting relation property —
+        // mount() already resolved and cached that relation before
+        // saveWanitaSettings() just updated the underlying row, so the
+        // cached instance wouldn't reflect the new wanita_sheet_url yet.
+        $setting = auth()->user()->organization->calendarSetting()->first();
+
+        if ($setting?->isWanitaSyncConfigured()) {
+            $wanita->sync($setting);
         }
     }
 

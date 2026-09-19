@@ -15,7 +15,9 @@ use App\Models\Holiday;
 use App\Models\HolidayCalendarSetting;
 use App\Models\OfficeSpace;
 use App\Models\Organization;
+use App\Models\OrganizationCalendarSetting;
 use App\Models\User;
+use App\Models\WanitaCalendarEvent;
 use App\Services\SystemSettingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -680,5 +682,63 @@ class BookingsCalendarTest extends TestCase
             $html,
             'School holiday badge must use a different (sky) color from public holidays.'
         );
+    }
+
+    public function test_wanita_events_show_on_the_calendar_for_the_owning_organization_only(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create([
+            'wanita_sheet_url' => 'https://docs.google.com/spreadsheets/d/abc123/edit',
+        ]);
+
+        $otherOrganization = Organization::factory()->create();
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        $monthStart = now()->startOfMonth()->addMonth();
+        $date = $monthStart->copy()->addDays(4)->format('Y-m-d');
+
+        WanitaCalendarEvent::create(['organization_id' => $organization->id, 'date' => $date, 'title' => 'MK 01 & 02 (WANITA)']);
+        WanitaCalendarEvent::create(['organization_id' => $otherOrganization->id, 'date' => $date, 'title' => 'Other Org Event (WANITA)']);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->set('month', $monthStart->format('Y-m'))
+            ->assertSee('MK 01 & 02 (WANITA)')
+            ->assertDontSee('Other Org Event (WANITA)');
+    }
+
+    public function test_wanita_legend_is_hidden_when_sync_is_not_configured(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->assertDontSee('WANITA');
+    }
+
+    public function test_wanita_legend_shows_when_sync_is_configured(): void
+    {
+        $organization = Organization::factory()->create();
+        $branch = Branch::factory()->create(['organization_id' => $organization->id]);
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+        OrganizationCalendarSetting::factory()->for($organization)->sharedModeConnected()->create([
+            'wanita_sheet_url' => 'https://docs.google.com/spreadsheets/d/abc123/edit',
+        ]);
+
+        $staff = User::factory()->create(['branch_id' => $branch->id, 'organization_id' => $organization->id]);
+        $staff->assignRole(RoleName::Staff->value);
+
+        Livewire::actingAs($staff)
+            ->test(Calendar::class)
+            ->assertSee('WANITA');
     }
 }
