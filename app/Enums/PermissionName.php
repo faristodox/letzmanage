@@ -24,6 +24,7 @@ enum PermissionName: string
     case ManageArchive = 'manage archive';
     case ManageMeetings = 'manage meetings';
     case ManageCommitteeMembers = 'manage committee members';
+    case ViewCalendar = 'view calendar';
 
     public function label(): string
     {
@@ -48,6 +49,7 @@ enum PermissionName: string
             self::ManageArchive => 'Manage Archive',
             self::ManageMeetings => 'Manage Meetings',
             self::ManageCommitteeMembers => 'Manage Committee Members',
+            self::ViewCalendar => 'View Calendar',
         };
     }
 
@@ -58,6 +60,7 @@ enum PermissionName: string
             self::ManageSettings, self::ManageRoles => 'Administration',
             self::CreateBookings, self::ViewOwnBookings, self::ViewAllBookings,
             self::ApproveBookings, self::CancelAnyBooking => 'Bookings',
+            self::ViewCalendar => 'Calendar',
             self::ViewSpiData => 'SPI Data',
             self::ManageEventForms, self::ViewEventResponses, self::CheckInEventParticipants => 'Event Forms',
             self::ManageForms, self::ViewFormResponses => 'Forms',

@@ -311,6 +311,36 @@ class BookingsCalendarTest extends TestCase
         $this->assertNotNull($event->registrationForm);
     }
 
+    public function test_committee_member_can_view_the_calendar_and_create_an_event_but_not_a_booking(): void
+    {
+        $branch = Branch::factory()->create();
+        OfficeSpace::factory()->create(['branch_id' => $branch->id, 'status' => OfficeSpaceStatus::Active]);
+
+        $committeeMember = User::factory()->create(['branch_id' => $branch->id]);
+        $committeeMember->assignRole(RoleName::CommitteeMember->value);
+
+        $date = now()->addDays(5)->format('Y-m-d');
+
+        Livewire::actingAs($committeeMember)
+            ->test(Calendar::class)
+            ->assertOk()
+            ->call('openCreate', $date)
+            ->assertSet('modalTab', 'event')
+            ->set('eventTitle', 'Portfolio Meetup')
+            ->call('saveEvent')
+            ->assertHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('events', ['title' => 'Portfolio Meetup']);
+
+        Livewire::actingAs($committeeMember)
+            ->test(Calendar::class)
+            ->call('openCreate', $date)
+            ->set('modalTab', 'booking')
+            ->call('save')
+            ->assertForbidden();
+    }
+
     public function test_clicking_a_booking_opens_its_details(): void
     {
         $branch = Branch::factory()->create();

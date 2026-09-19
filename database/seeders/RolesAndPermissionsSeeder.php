@@ -39,12 +39,14 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::ManageArchive,
             PermissionName::ManageMeetings,
             PermissionName::ManageCommitteeMembers,
+            PermissionName::ViewCalendar,
         ]);
 
         $staff = Role::findOrCreate(RoleName::Staff->value);
         $staff->syncPermissions([
             PermissionName::CreateBookings,
             PermissionName::ViewOwnBookings,
+            PermissionName::ViewCalendar,
         ]);
 
         // Scoped to their own portfolio at the query level (see
@@ -55,6 +57,7 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionName::ManageEventForms,
             PermissionName::ManageMeetings,
             PermissionName::ManageCommitteeMembers,
+            PermissionName::ViewCalendar,
         ]);
     }
 }

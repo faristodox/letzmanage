@@ -128,7 +128,7 @@
                         {{ $modalTab === 'event' ? __('New Event') : __('New Booking') }} — {{ \Illuminate\Support\Carbon::parse($date)->format('D, j M Y') }}
                     </h2>
 
-                    @if ($canViewEvents && $spaces->isNotEmpty())
+                    @if ($canViewEvents && $canCreateBooking && $spaces->isNotEmpty())
                         <div class="mt-4 flex gap-1 rounded-lg bg-slate-100 p-1">
                             <button type="button" wire:click="$set('modalTab', 'event')"
                                 class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition {{ $modalTab === 'event' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700' }}">
@@ -189,7 +189,7 @@
                                 <x-primary-button type="submit">{{ __('Create & Continue') }}</x-primary-button>
                             </div>
                         </form>
-                    @else
+                    @elseif ($canCreateBooking)
                         <form wire:submit="save" class="mt-4 space-y-4">
                             @if ($errorMessage)
                                 <div class="rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-600/10">

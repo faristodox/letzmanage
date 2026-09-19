@@ -76,7 +76,7 @@ class Calendar extends Component
 
     public function mount(): void
     {
-        $this->authorize('create', Booking::class);
+        $this->authorize('view calendar');
 
         $this->month = now()->format('Y-m');
         $this->canViewEvents = auth()->user()->can('viewAny', Event::class);
@@ -110,7 +110,11 @@ class Calendar extends Component
 
     public function openCreate(string $date): void
     {
-        $this->authorize('create', Booking::class);
+        $canCreateBooking = auth()->user()->can('create', Booking::class);
+
+        if (! $canCreateBooking && ! $this->canViewEvents) {
+            abort(403);
+        }
 
         $this->date = $date;
         $this->title = '';
@@ -409,6 +413,7 @@ class Calendar extends Component
             'viewingEvent' => $this->viewEventId ? Event::with('registrationForm')->find($this->viewEventId) : null,
             'spaces' => $spaces,
             'showingAllSpaces' => ! $this->space_id,
+            'canCreateBooking' => auth()->user()->can('create', Booking::class),
         ]);
     }
 
