@@ -51,4 +51,17 @@ class BookingLinkCardTest extends TestCase
             ->assertOk()
             ->assertDontSee('Your public booking link');
     }
+
+    public function test_committee_member_sees_the_calendar_widget_on_the_dashboard_and_nav(): void
+    {
+        $org = Organization::factory()->create();
+        $user = User::factory()->for($org)->create();
+        $user->assignRole(RoleName::CommitteeMember->value);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee(__('Booking Calendar'))
+            ->assertSee(__('Calendar'));
+    }
 }

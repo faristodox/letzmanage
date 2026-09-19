@@ -38,7 +38,7 @@
             </li>
         @endcan
 
-        @can('create', App\Models\Booking::class)
+        @can('view calendar')
             <li>
                 <x-nav-link :href="route('bookings.calendar')" :active="request()->routeIs('bookings.calendar')" wire:navigate
                     x-bind:class="($store.sidebar?.collapsed) ? 'justify-center' : ''"

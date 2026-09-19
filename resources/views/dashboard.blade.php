@@ -15,7 +15,7 @@
 
         <livewire:dashboard-stats />
 
-        @can('create', App\Models\Booking::class)
+        @can('view calendar')
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="mb-4 flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-900">{{ __('Booking Calendar') }}</h2>
